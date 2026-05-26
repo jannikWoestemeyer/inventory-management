@@ -102,7 +102,7 @@ export default {
 
 <style scoped>
 .filters-bar {
-  background: #f8fafc;
+  background: var(--paper-bg);
   border-bottom: 1px solid #e2e8f0;
   padding: 0.75rem 0;
   position: sticky;
@@ -135,7 +135,7 @@ export default {
 .filter-group label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #64748b;
+  color: var(--ink-muted);
   white-space: nowrap;
 }
 
@@ -144,8 +144,8 @@ export default {
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   font-size: 0.813rem;
-  color: #0f172a;
-  background: white;
+  color: var(--ink-strong);
+  background: var(--paper-surface);
   cursor: pointer;
   transition: all 0.2s;
   font-weight: 500;
@@ -153,12 +153,12 @@ export default {
 }
 
 .filter-select:hover {
-  border-color: #94a3b8;
+  border-color: var(--ink-muted);
 }
 
 .filter-select:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--ink-blue);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -167,19 +167,19 @@ export default {
   align-items: center;
   justify-content: center;
   padding: 0.4rem;
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--paper-surface);
+  border: 1px solid var(--pencil-soft);
   border-radius: 6px;
-  color: #64748b;
+  color: var(--ink-muted);
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
 }
 
 .reset-filters-btn:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #0f172a;
+  background: var(--paper-bg);
+  border-color: var(--pencil);
+  color: var(--ink-strong);
 }
 
 .reset-filters-btn:disabled {
