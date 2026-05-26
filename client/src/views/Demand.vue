@@ -85,7 +85,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="forecast in forecasts" :key="forecast.id">
+              <tr v-for="forecast in forecasts" :key="forecast.id" :data-copilot-sku="forecast.item_sku">
                 <td><strong>{{ forecast.item_sku }}</strong></td>
                 <td>{{ forecast.item_name }}</td>
                 <td>{{ forecast.current_demand }}</td>
