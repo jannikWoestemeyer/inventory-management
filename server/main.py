@@ -115,6 +115,21 @@ class CreateRestockingOrderRequest(BaseModel):
     items: List[RestockingOrderItem]
     budget: float
 
+
+class Task(BaseModel):
+    id: str
+    title: str
+    status: str = "pending"  # "pending" or "completed"
+    priority: Optional[str] = None
+    due_date: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class CreateTaskRequest(BaseModel):
+    title: str
+    priority: Optional[str] = None
+    due_date: Optional[str] = None
+
 class BacklogItem(BaseModel):
     id: str
     order_id: str
@@ -346,6 +361,53 @@ def get_monthly_trends(
 
 # In-memory store for restocking orders (resets on server restart)
 submitted_restocking_orders: List[dict] = []
+
+# In-memory store for user tasks (resets on server restart)
+user_tasks: List[dict] = []
+
+
+@app.get("/api/tasks", response_model=List[Task])
+def list_tasks():
+    """Return all user tasks (in-memory, resets on server restart)."""
+    return user_tasks
+
+
+@app.post("/api/tasks", response_model=Task, status_code=201)
+def create_task(payload: CreateTaskRequest):
+    """Create a new task."""
+    from datetime import datetime, timezone
+
+    next_id = str(len(user_tasks) + 1)
+    task = {
+        "id": next_id,
+        "title": payload.title,
+        "status": "pending",
+        "priority": payload.priority,
+        "due_date": payload.due_date,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    user_tasks.append(task)
+    return task
+
+
+@app.delete("/api/tasks/{task_id}")
+def delete_task(task_id: str):
+    """Delete a task by id."""
+    for i, t in enumerate(user_tasks):
+        if t["id"] == task_id:
+            user_tasks.pop(i)
+            return {"deleted": task_id}
+    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+
+@app.patch("/api/tasks/{task_id}", response_model=Task)
+def toggle_task(task_id: str):
+    """Toggle a task's status between 'pending' and 'completed'."""
+    for t in user_tasks:
+        if t["id"] == task_id:
+            t["status"] = "completed" if t["status"] == "pending" else "pending"
+            return t
+    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
 
 @app.get("/api/restocking/orders", response_model=List[RestockingOrder])
