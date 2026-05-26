@@ -62,25 +62,20 @@ function applyUiAction(action, ctx) {
     case 'highlight': {
       const selector = highlightSelectorFor(action.kind)
       if (!selector) return { applied: false, reason: 'unmapped kind' }
-      // Defer one paint so router-pushed nav has time to mount the target
-      // element before we query for it. Highlights are almost always
-      // preceded by navigate() in the same agent turn.
-      requestAnimationFrame(() => {
-        // Sometimes the new route is still mounting on the next paint —
-        // retry a couple of frames before giving up.
-        let attempts = 0
-        const tryHighlight = () => {
-          const el = document.querySelector(selector)
-          if (!el) {
-            attempts += 1
-            if (attempts < 8) {
-              requestAnimationFrame(tryHighlight)
-            }
-            return
-          }
-          // Scroll into view first so a below-the-fold row is actually
-          // visible when the pulse starts. `block: center` puts it in
-          // the middle of the viewport rather than the very top.
+      // Highlights almost always follow `navigate()` in the same agent
+      // turn. Route changes are async: vue-router resolves, Vue mounts
+      // the new view, the view's `onMounted` fires an API request, and
+      // only then does the target row exist in the DOM. The whole
+      // sequence regularly takes 200-500ms — a quick RAF retry isn't
+      // enough. Poll every 100ms for up to 3s; that covers the worst
+      // realistic case without blocking anything.
+      let attempts = 0
+      const MAX_ATTEMPTS = 30        // 30 × 100ms = 3s
+      const RETRY_INTERVAL_MS = 100
+
+      const tryHighlight = () => {
+        const el = document.querySelector(selector)
+        if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' })
           // Restart animation via class-remove + reflow + class-add.
           el.classList.remove('copilot-pulse')
@@ -91,9 +86,21 @@ function applyUiAction(action, ctx) {
             el.removeEventListener('animationend', stripper)
           }
           el.addEventListener('animationend', stripper)
+          return
         }
-        tryHighlight()
-      })
+        attempts += 1
+        if (attempts < MAX_ATTEMPTS) {
+          setTimeout(tryHighlight, RETRY_INTERVAL_MS)
+        } else {
+          // Drop the warning to the console so we can spot stale
+          // selectors fast instead of silently failing.
+          console.warn(
+            `[copilot] highlight target not found after ${MAX_ATTEMPTS * RETRY_INTERVAL_MS}ms:`,
+            selector
+          )
+        }
+      }
+      tryHighlight()
       return { applied: true, kind: action.kind }
     }
     default:
