@@ -426,6 +426,28 @@ export default {
     days: '日'
   },
 
+  // Copilot
+  copilot: {
+    fab: 'Ops Copilotを開く',
+    close: 'Copilotを閉じる',
+    title: 'Ops Copilot',
+    subtitle: '在庫・サプライヤー・注文・需要について聞いてください。',
+    newChat: '新しい会話を開始',
+    placeholder: 'Copilotに質問...',
+    send: '送信',
+    sending: '考え中',
+    thinking: '実行中',
+    done: '完了',
+    approve: '承認',
+    reject: '破棄',
+    approved: '承認済み',
+    rejected: '破棄済み',
+    emptyTitle: '全ページのデータを読めます。例:',
+    exampleOne: 'Helixのリードタイムが2倍になった場合、最もリスクの高いサプライヤーは?',
+    exampleTwo: '需要増の商品に対して3万ドルの補充注文を作成して。',
+    exampleThree: 'Q3の履行率が下がった理由は?'
+  },
+
   // Common
   common: {
     loading: '読み込み中...',

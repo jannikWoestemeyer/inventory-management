@@ -426,6 +426,28 @@ export default {
     days: 'days'
   },
 
+  // Copilot
+  copilot: {
+    fab: 'Open Ops Copilot',
+    close: 'Close Copilot',
+    title: 'Ops Copilot',
+    subtitle: 'Ask about inventory, suppliers, orders, demand.',
+    newChat: 'Start a new conversation',
+    placeholder: 'Ask the copilot...',
+    send: 'Send',
+    sending: 'Thinking',
+    thinking: 'running',
+    done: 'done',
+    approve: 'Approve',
+    reject: 'Discard',
+    approved: 'Approved',
+    rejected: 'Discarded',
+    emptyTitle: 'I can read across every page. Try:',
+    exampleOne: "Which suppliers are most exposed if Helix doubles their lead time?",
+    exampleTwo: "Draft a $30K restocking order for items with increasing demand.",
+    exampleThree: "Why did Q3 fulfillment drop?"
+  },
+
   // Common
   common: {
     loading: 'Loading...',

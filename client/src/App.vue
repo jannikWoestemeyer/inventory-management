@@ -71,6 +71,9 @@
       @delete-task="deleteTask"
       @toggle-task="toggleTask"
     />
+
+    <CopilotPanel :is-open="copilotOpen" />
+    <CopilotFab :is-open="copilotOpen" @toggle="copilotOpen = !copilotOpen" />
   </div>
 </template>
 
@@ -84,6 +87,8 @@ import ProfileMenu from './components/ProfileMenu.vue'
 import ProfileDetailsModal from './components/ProfileDetailsModal.vue'
 import TasksModal from './components/TasksModal.vue'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
+import CopilotFab from './components/CopilotFab.vue'
+import CopilotPanel from './components/CopilotPanel.vue'
 
 const THEME_STORAGE_KEY = 'inventory-app-theme'
 
@@ -94,7 +99,9 @@ export default {
     ProfileMenu,
     ProfileDetailsModal,
     TasksModal,
-    LanguageSwitcher
+    LanguageSwitcher,
+    CopilotFab,
+    CopilotPanel
   },
   setup() {
     const { currentUser } = useAuth()
@@ -102,6 +109,7 @@ export default {
     const showProfileDetails = ref(false)
     const showTasks = ref(false)
     const apiTasks = ref([])
+    const copilotOpen = ref(false)
 
     // Theme: prefer stored choice, else honor prefers-color-scheme, else light
     const initialTheme = () => {
@@ -199,7 +207,8 @@ export default {
       tasks,
       addTask,
       deleteTask,
-      toggleTask
+      toggleTask,
+      copilotOpen
     }
   }
 }
