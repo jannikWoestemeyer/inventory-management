@@ -872,18 +872,26 @@ input[type="range"]:active::-moz-range-thumb {
 }
 
 /* ------------------ Copilot pulse highlight ------------------
-   Added briefly to any element the agent calls `highlight_element` on.
-   The animationend handler in useCopilotStream.js strips the class after
-   the keyframes finish so the DOM stays clean. */
+   Added to any element the agent calls `highlight_element` on. We use a
+   thick high-contrast warning-amber OUTLINE (not box-shadow — outline is
+   crisper and never affected by overflow:hidden ancestors) plus a clear
+   inner tint, sustained for several seconds. The earlier subtle box-shadow
+   version was too easy to miss on full-width cards where the ring lived
+   at the viewport edges.
+   The animationend handler in useCopilotStream.js strips the class. */
 @keyframes copilot-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(59, 111, 179, 0.55), 0 0 0 0 rgba(59, 111, 179, 0.18); }
-  60%  { box-shadow: 0 0 0 8px rgba(59, 111, 179, 0.00), 0 0 0 14px rgba(59, 111, 179, 0.00); }
-  100% { box-shadow: 0 0 0 0 rgba(59, 111, 179, 0.00), 0 0 0 0 rgba(59, 111, 179, 0.00); }
+  0%   { outline-color: rgba(234, 88, 12, 0.00); background-color: rgba(234, 88, 12, 0.00); }
+  8%   { outline-color: rgba(234, 88, 12, 0.95); background-color: rgba(234, 88, 12, 0.18); }
+  50%  { outline-color: rgba(234, 88, 12, 0.70); background-color: rgba(234, 88, 12, 0.12); }
+  92%  { outline-color: rgba(234, 88, 12, 0.40); background-color: rgba(234, 88, 12, 0.04); }
+  100% { outline-color: rgba(234, 88, 12, 0.00); background-color: rgba(234, 88, 12, 0.00); }
 }
 .copilot-pulse {
-  animation: copilot-pulse 1.6s ease-out 0s 2 both;
+  /* 4s × 2 = 8s — long, unmissable, but ends before it becomes annoying. */
+  animation: copilot-pulse 4s ease-in-out 0s 2 both;
+  outline: 4px solid rgba(234, 88, 12, 0);
+  outline-offset: 4px;
   border-radius: 10px;
-  /* Keep the underlying element interactive — pulse is purely cosmetic. */
   position: relative;
   z-index: 10;
 }

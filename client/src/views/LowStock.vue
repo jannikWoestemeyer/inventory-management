@@ -30,7 +30,7 @@
 
     <div v-else>
       <!-- Summary stat cards -->
-      <div class="stats-grid">
+      <div class="stats-grid" data-copilot-card="low-stock-summary">
         <div class="stat-card">
           <div class="stat-label">{{ t('lowStock.summary.itemsBelow') }}</div>
           <div class="stat-value">{{ items.length.toLocaleString() }}</div>
@@ -50,7 +50,7 @@
       </div>
 
       <!-- Items table -->
-      <div class="card">
+      <div class="card" data-copilot-card="low-stock-table">
         <div class="card-header">
           <h3 class="card-title">{{ t('lowStock.table.title') }}</h3>
         </div>

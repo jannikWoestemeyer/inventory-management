@@ -321,10 +321,30 @@ def set_filter(filter: str, value: str) -> dict:
 
 
 _HIGHLIGHT_KINDS = {
+    # Nav tabs
     "nav:overview", "nav:inventory", "nav:orders", "nav:finance",
     "nav:demand", "nav:reports", "nav:restocking", "nav:backlog",
     "nav:suppliers", "nav:low-stock",
+    # Global filter dropdowns
     "filter:period", "filter:location", "filter:category", "filter:status",
+    # In-page card / section targets (data-copilot-card attributes)
+    "card:low-stock-table",        # /low-stock — the items table
+    "card:low-stock-summary",      # /low-stock — the 4 stat cards
+    "card:suppliers-table",        # /suppliers — the supplier breakdown
+    "card:suppliers-summary",      # /suppliers — the 4 stat cards
+    "card:restocking-budget",      # /restocking — the budget slider
+    "card:restocking-table",       # /restocking — the recommended items
+    "card:restocking-summary",     # /restocking — the 4 stat cards
+    "card:reports-quarterly",      # /reports — the quarterly perf table
+    "card:reports-trend",          # /reports — the monthly trend chart
+    "card:backlog-table",          # /backlog — the items table
+    "card:backlog-summary",        # /backlog — the 4 stat cards
+    "card:dashboard-kpi",          # /  — the KPI strip
+    "card:dashboard-order-health", # /  — the donut + metrics
+    "card:dashboard-inventory-by-category",
+    "card:dashboard-shortages",
+    "card:dashboard-top-products",
+    # Whole page
     "page:current",
 }
 
@@ -641,15 +661,14 @@ TOOL_SCHEMAS: List[dict] = [
             "properties": {
                 "kind": {
                     "type": "string",
-                    "enum": [
-                        "nav:overview", "nav:inventory", "nav:orders",
-                        "nav:finance", "nav:demand", "nav:reports",
-                        "nav:restocking", "nav:backlog", "nav:suppliers",
-                        "nav:low-stock",
-                        "filter:period", "filter:location",
-                        "filter:category", "filter:status",
-                        "page:current",
-                    ],
+                    "enum": sorted(_HIGHLIGHT_KINDS),
+                    "description": (
+                        "Highlight target. Prefer the most specific target you "
+                        "can: `card:*` for in-page sections, `nav:*` for tabs, "
+                        "`filter:*` for filter dropdowns. Only use "
+                        "`page:current` as a fallback — it pulses the whole "
+                        "content frame and is easy to miss."
+                    ),
                 },
                 "note": {
                     "type": "string",

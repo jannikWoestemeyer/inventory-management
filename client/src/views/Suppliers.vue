@@ -12,7 +12,7 @@
     </div>
     <div v-else>
       <!-- Summary stats -->
-      <div class="stats-grid">
+      <div class="stats-grid" data-copilot-card="suppliers-summary">
         <div class="stat-card">
           <div class="stat-label">{{ t('suppliers.summary.totalSuppliers') }}</div>
           <div class="stat-value">{{ totalSuppliers.toLocaleString() }}</div>
@@ -32,7 +32,7 @@
       </div>
 
       <!-- Supplier breakdown table -->
-      <div class="card">
+      <div class="card" data-copilot-card="suppliers-table">
         <div class="card-header">
           <h3 class="card-title">{{ t('suppliers.table.title') }}</h3>
         </div>

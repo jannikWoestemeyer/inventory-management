@@ -110,12 +110,17 @@ function normalizeFilterValue(filter, raw) {
 
 /** Translate a server-side highlight `kind` into a CSS selector. */
 function highlightSelectorFor(kind) {
-  // Nav tabs first: we tag each router-link with data-copilot-nav="<key>".
+  // Nav tabs: data-copilot-nav="<key>".
   if (kind?.startsWith?.('nav:')) {
     return `[data-copilot-nav="${kind.slice(4)}"]`
   }
+  // Filter dropdowns: data-copilot-filter="<key>".
   if (kind?.startsWith?.('filter:')) {
     return `[data-copilot-filter="${kind.slice(7)}"]`
+  }
+  // In-page cards: data-copilot-card="<key>".
+  if (kind?.startsWith?.('card:')) {
+    return `[data-copilot-card="${kind.slice(5)}"]`
   }
   if (kind === 'page:current') return '.main-content'
   return null
