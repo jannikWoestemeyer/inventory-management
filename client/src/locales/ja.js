@@ -9,6 +9,8 @@ export default {
     reports: 'レポート',
     restocking: '補充',
     backlog: 'バックログ',
+    suppliers: 'サプライヤー',
+    lowStock: '在庫不足',
     companyName: '触媒コンポーネンツ',
     subtitle: '在庫管理システム'
   },
@@ -367,6 +369,61 @@ export default {
       unitsShort: '個不足',
       days: '日'
     }
+  },
+
+  // Suppliers
+  suppliers: {
+    title: 'サプライヤー',
+    description: 'サプライヤー別の在庫額・リードタイム・在庫不足リスク',
+    summary: {
+      totalSuppliers: 'サプライヤー総数',
+      totalInventoryValue: '総在庫額',
+      avgItemsPerSupplier: 'サプライヤー平均商品数',
+      suppliersWithLowStock: '在庫不足サプライヤー数'
+    },
+    table: {
+      title: 'サプライヤー内訳',
+      supplier: 'サプライヤー',
+      itemCount: '商品数',
+      inventoryValue: '在庫額',
+      categories: 'カテゴリ',
+      avgLeadTime: '平均リードタイム',
+      lowStock: '在庫不足'
+    },
+    days: '日',
+    noData: '現在のフィルタに該当するサプライヤーはありません。'
+  },
+
+  // Low-stock alerts
+  lowStock: {
+    title: '在庫不足アラート',
+    description: '発注点以下の商品 — 補充が必要です',
+    healthy: {
+      title: '問題なし',
+      message: '現在のフィルタでは発注点を下回る商品はありません。'
+    },
+    severityCritical: '重大',
+    severityWarning: '警告',
+    summary: {
+      itemsBelow: '発注点以下',
+      criticalCount: '重大 (≤ 50%)',
+      warningCount: '警告 (50–100%)',
+      atRiskValue: 'リスク在庫額'
+    },
+    table: {
+      title: '補充が必要な商品',
+      sku: 'SKU',
+      item: '商品',
+      category: 'カテゴリ',
+      warehouse: '倉庫',
+      supplier: 'サプライヤー',
+      onHand: '在庫',
+      reorderPoint: '発注点',
+      gap: '不足数',
+      severity: '深刻度',
+      leadTime: 'リードタイム'
+    },
+    days: '日'
   },
 
   // Common

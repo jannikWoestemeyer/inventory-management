@@ -161,7 +161,7 @@ export default {
 .no-backlog {
   padding: 3rem;
   text-align: center;
-  color: #10b981;
+  color: var(--success);
   font-weight: 600;
   font-size: 1.125rem;
 }

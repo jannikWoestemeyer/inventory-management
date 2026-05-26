@@ -112,7 +112,7 @@ const formatDate = (dateString) => {
 }
 
 .modal-container {
-  background: white;
+  background: var(--paper-surface);
   border-radius: 12px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
   max-width: 600px;
@@ -134,14 +134,14 @@ const formatDate = (dateString) => {
 .modal-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--ink-strong);
   letter-spacing: -0.025em;
 }
 
 .close-button {
   background: none;
   border: none;
-  color: #64748b;
+  color: var(--ink-muted);
   cursor: pointer;
   padding: 0.5rem;
   display: flex;
@@ -152,8 +152,8 @@ const formatDate = (dateString) => {
 }
 
 .close-button:hover {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--paper-surface-warm);
+  color: var(--ink-strong);
 }
 
 .modal-body {
@@ -195,13 +195,13 @@ const formatDate = (dateString) => {
 .profile-name {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--ink-strong);
   margin: 0;
 }
 
 .profile-job-title {
   font-size: 1rem;
-  color: #64748b;
+  color: var(--ink-muted);
   margin: 0;
 }
 
@@ -222,12 +222,12 @@ const formatDate = (dateString) => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #64748b;
+  color: var(--ink-muted);
 }
 
 .info-value {
   font-size: 0.938rem;
-  color: #0f172a;
+  color: var(--ink-strong);
   font-weight: 500;
 }
 
@@ -241,8 +241,8 @@ const formatDate = (dateString) => {
 
 .btn-secondary {
   padding: 0.625rem 1.25rem;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  background: var(--paper-surface-warm);
+  border: 1px solid var(--pencil-soft);
   border-radius: 8px;
   font-weight: 500;
   font-size: 0.875rem;
@@ -253,8 +253,8 @@ const formatDate = (dateString) => {
 }
 
 .btn-secondary:hover {
-  background: #e2e8f0;
-  border-color: #cbd5e1;
+  background: var(--pencil-soft);
+  border-color: var(--pencil);
 }
 
 /* Modal transition animations */

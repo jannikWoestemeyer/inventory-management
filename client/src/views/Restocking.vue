@@ -20,6 +20,7 @@
           :max="250000"
           :step="1000"
           class="budget-slider"
+          :style="{ '--fill-percent': budgetPercent + '%' }"
         />
         <div class="slider-bounds">
           <span>$0</span>
@@ -168,6 +169,7 @@ export default {
       recommendations.value.reduce((sum, r) => sum + r.line_cost, 0)
     )
     const budgetRemaining = computed(() => Math.max(0, budget.value - totalCost.value))
+    const budgetPercent = computed(() => (budget.value / 250000) * 100)
     const maxLeadTime = computed(() =>
       recommendations.value.length === 0
         ? 0
@@ -205,6 +207,7 @@ export default {
       error,
       submitting,
       budget,
+      budgetPercent,
       recommendations,
       totalCost,
       budgetRemaining,
