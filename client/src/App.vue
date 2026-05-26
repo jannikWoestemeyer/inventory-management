@@ -873,32 +873,59 @@ input[type="range"]:active::-moz-range-thumb {
 
 /* ------------------ Copilot pulse highlight ------------------
    Added to any element the agent calls `highlight_element` on.
-   Neon magenta — chosen so it's clearly a system-overlay color the user
-   never sees in normal product UI. Three layers stacked at the peak:
-   (1) a 6px solid magenta outline, (2) an outer glow via filter:
-   drop-shadow that follows the element's actual border-radius, (3) a
-   subtle inner tint. Plus the animation has a hold phase so the peak
-   stays visible for ~1.5s instead of flashing past.
+   Neon magenta — clearly a system-overlay color the user never sees in
+   normal product UI. Two variants because <tr> elements behave badly
+   with outlines (clipped by .table-container's overflow:auto and
+   styled inconsistently across browsers):
+
+   - Default (cards, nav links, filter groups): outline + drop-shadow
+     glow + inner tint
+   - <tr>: background flash + thick left-border accent, no outline
+
    The animationend handler in useCopilotStream.js strips the class. */
 @keyframes copilot-pulse {
   0%   { outline-color: rgba(236, 72, 153, 0.00); background-color: rgba(236, 72, 153, 0.00); }
-  6%   { outline-color: rgba(236, 72, 153, 1.00); background-color: rgba(236, 72, 153, 0.20); }
-  /* Hold the peak from 6%→40% (~1.4s of a 4.2s anim) so it doesn't flash. */
-  40%  { outline-color: rgba(236, 72, 153, 0.95); background-color: rgba(236, 72, 153, 0.18); }
-  70%  { outline-color: rgba(236, 72, 153, 0.70); background-color: rgba(236, 72, 153, 0.10); }
+  4%   { outline-color: rgba(236, 72, 153, 1.00); background-color: rgba(236, 72, 153, 0.22); }
+  /* Long hold so the user can actually scan to the highlighted thing. */
+  60%  { outline-color: rgba(236, 72, 153, 0.95); background-color: rgba(236, 72, 153, 0.20); }
+  85%  { outline-color: rgba(236, 72, 153, 0.65); background-color: rgba(236, 72, 153, 0.10); }
   100% { outline-color: rgba(236, 72, 153, 0.00); background-color: rgba(236, 72, 153, 0.00); }
 }
+
+@keyframes copilot-pulse-row {
+  /* Row variant: oscillate the background between cycles so the eye
+     catches it as "actively pulsing" instead of "statically tinted". */
+  0%   { background-color: rgba(236, 72, 153, 0.00); }
+  20%  { background-color: rgba(236, 72, 153, 0.35); }
+  50%  { background-color: rgba(236, 72, 153, 0.15); }
+  80%  { background-color: rgba(236, 72, 153, 0.35); }
+  100% { background-color: rgba(236, 72, 153, 0.15); }
+}
+
 .copilot-pulse {
-  /* 4.2s × 2 = 8.4s. Long, unmissable, but ends before it nags. */
-  animation: copilot-pulse 4.2s ease-in-out 0s 2 both;
+  /* 5s × 3 = 15s — long enough to act on, ends before it nags. */
+  animation: copilot-pulse 5s ease-in-out 0s 3 both;
   outline: 6px solid rgba(236, 72, 153, 0);
   outline-offset: 3px;
   border-radius: 10px;
   position: relative;
   z-index: 10;
-  /* Drop-shadow follows the rounded corners (box-shadow doesn't on outline
-     pseudo-rendering); 0 0 18px gives a neon-glow halo around the ring. */
   filter: drop-shadow(0 0 18px rgba(236, 72, 153, 0.55));
+}
+
+/* Table-row variant — outlines are unreliable on <tr> (clipped by
+   overflow:auto on table-container, inconsistent z-stacking). We use
+   a strong background flash and a thick magenta left-border accent
+   instead. !important defeats `tr:hover` and dark-mode tints. */
+tr.copilot-pulse {
+  animation: copilot-pulse-row 2.5s ease-in-out 0s 6 both;
+  outline: none !important;
+  filter: none;
+  border-left: 4px solid #ec4899 !important;
+  box-shadow: inset 4px 0 0 #ec4899;
+}
+tr.copilot-pulse > td {
+  background-color: inherit !important;
 }
 
 /* ------------------ Scrollbar polish (subtle) ------------------ */

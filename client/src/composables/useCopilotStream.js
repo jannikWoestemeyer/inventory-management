@@ -62,19 +62,38 @@ function applyUiAction(action, ctx) {
     case 'highlight': {
       const selector = highlightSelectorFor(action.kind)
       if (!selector) return { applied: false, reason: 'unmapped kind' }
-      const el = document.querySelector(selector)
-      if (!el) return { applied: false, reason: 'element not in DOM' }
-      el.classList.remove('copilot-pulse')
-      // Force reflow so the class re-application restarts the animation
-      // even if we highlight the same element twice in a row.
-      void el.offsetWidth
-      el.classList.add('copilot-pulse')
-      // Strip the class once the animation finishes so the DOM stays clean.
-      const stripper = () => {
-        el.classList.remove('copilot-pulse')
-        el.removeEventListener('animationend', stripper)
-      }
-      el.addEventListener('animationend', stripper)
+      // Defer one paint so router-pushed nav has time to mount the target
+      // element before we query for it. Highlights are almost always
+      // preceded by navigate() in the same agent turn.
+      requestAnimationFrame(() => {
+        // Sometimes the new route is still mounting on the next paint —
+        // retry a couple of frames before giving up.
+        let attempts = 0
+        const tryHighlight = () => {
+          const el = document.querySelector(selector)
+          if (!el) {
+            attempts += 1
+            if (attempts < 8) {
+              requestAnimationFrame(tryHighlight)
+            }
+            return
+          }
+          // Scroll into view first so a below-the-fold row is actually
+          // visible when the pulse starts. `block: center` puts it in
+          // the middle of the viewport rather than the very top.
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          // Restart animation via class-remove + reflow + class-add.
+          el.classList.remove('copilot-pulse')
+          void el.offsetWidth
+          el.classList.add('copilot-pulse')
+          const stripper = () => {
+            el.classList.remove('copilot-pulse')
+            el.removeEventListener('animationend', stripper)
+          }
+          el.addEventListener('animationend', stripper)
+        }
+        tryHighlight()
+      })
       return { applied: true, kind: action.kind }
     }
     default:
