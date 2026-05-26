@@ -72,6 +72,110 @@ def _filter_by_month(items: list, month: Optional[str]) -> list:
 # Read-only tools (auto-execute, no proposal step)
 # ---------------------------------------------------------------------------
 
+def get_inventory_items(
+    warehouse: Optional[str] = None,
+    category: Optional[str] = None,
+    sort_by: str = "value",
+    limit: int = 20,
+) -> list[dict]:
+    """Return individual inventory item rows (not aggregates).
+
+    Use this when the user asks about a specific SKU, the highest/lowest item
+    by some dimension, or otherwise needs row-level data. `sort_by`:
+    `"value"` (qty × unit_cost desc — default), `"quantity"` (qty_on_hand
+    desc), `"unit_cost"` (desc), `"shortage"` (gap below reorder desc).
+    """
+    items = _apply_filters(inventory_items, warehouse=warehouse, category=category)
+
+    if sort_by == "quantity":
+        items = sorted(items, key=lambda i: i["quantity_on_hand"], reverse=True)
+    elif sort_by == "unit_cost":
+        items = sorted(items, key=lambda i: i["unit_cost"], reverse=True)
+    elif sort_by == "shortage":
+        items = sorted(
+            items,
+            key=lambda i: max(0, i["reorder_point"] - i["quantity_on_hand"]),
+            reverse=True,
+        )
+    else:  # default + fallback: "value"
+        items = sorted(
+            items,
+            key=lambda i: i["quantity_on_hand"] * i["unit_cost"],
+            reverse=True,
+        )
+
+    # Trim oversized fields and compute the value the agent likely wants.
+    out = []
+    for i in items[: max(1, min(limit, 50))]:
+        out.append(
+            {
+                "sku": i["sku"],
+                "name": i["name"],
+                "category": i["category"],
+                "warehouse": i["warehouse"],
+                "quantity_on_hand": i["quantity_on_hand"],
+                "reorder_point": i["reorder_point"],
+                "unit_cost": i["unit_cost"],
+                "total_value": round(i["quantity_on_hand"] * i["unit_cost"], 2),
+                "supplier_name": i.get("supplier_name"),
+                "lead_time_days": i.get("lead_time_days"),
+                "low_stock": i["quantity_on_hand"] <= i["reorder_point"],
+            }
+        )
+    return out
+
+
+def get_orders_list(
+    warehouse: Optional[str] = None,
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    month: Optional[str] = None,
+    sort_by: str = "value",
+    limit: int = 20,
+) -> list[dict]:
+    """Return individual order rows (not aggregates).
+
+    Use this when the user asks about specific orders — biggest, latest, most
+    delayed, etc. `sort_by`: `"value"` (total_value desc — default), `"date"`
+    (order_date desc), `"delay"` (delivery delay desc).
+    """
+    filtered = _filter_by_month(
+        _apply_filters(orders, warehouse=warehouse, category=category, status=status),
+        month,
+    )
+
+    if sort_by == "date":
+        filtered = sorted(filtered, key=lambda o: o.get("order_date", ""), reverse=True)
+    elif sort_by == "delay":
+        def _delay(o):
+            ad = o.get("actual_delivery")
+            ed = o.get("expected_delivery")
+            return (ad or "") > (ed or "")
+        filtered = sorted(filtered, key=_delay, reverse=True)
+    else:
+        filtered = sorted(filtered, key=lambda o: o.get("total_value", 0), reverse=True)
+
+    # Strip the items[] sub-array to a count so we don't blow up tokens.
+    out = []
+    for o in filtered[: max(1, min(limit, 50))]:
+        out.append(
+            {
+                "id": o["id"],
+                "order_number": o["order_number"],
+                "customer": o["customer"],
+                "status": o["status"],
+                "warehouse": o.get("warehouse"),
+                "category": o.get("category"),
+                "order_date": o["order_date"],
+                "expected_delivery": o.get("expected_delivery"),
+                "actual_delivery": o.get("actual_delivery"),
+                "total_value": o["total_value"],
+                "item_count": len(o.get("items", [])),
+            }
+        )
+    return out
+
+
 def get_inventory_summary(
     warehouse: Optional[str] = None,
     category: Optional[str] = None,
@@ -500,6 +604,61 @@ _FILTER_PROPS_ORDERS = {
 
 TOOL_SCHEMAS: List[dict] = [
     {
+        "name": "get_inventory_items",
+        "description": (
+            "Return individual inventory item ROWS (not aggregates). Use this "
+            "whenever the user asks about a specific SKU, the highest/lowest "
+            "item by some dimension, or otherwise needs row-level data — "
+            "questions like 'which SKU has the most stock?' or 'what's the "
+            "single highest-value item?'. Each row includes sku, name, "
+            "category, warehouse, quantity_on_hand, reorder_point, unit_cost, "
+            "total_value (qty × cost), supplier_name, lead_time_days, and a "
+            "low_stock boolean. The list is pre-sorted; pick the right "
+            "`sort_by`."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                **_FILTER_PROPS_BASIC,
+                "sort_by": {
+                    "type": "string",
+                    "enum": ["value", "quantity", "unit_cost", "shortage"],
+                    "description": "'value' (qty × unit_cost desc — default), 'quantity' (units desc), 'unit_cost' (price desc), 'shortage' (gap below reorder desc).",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Max rows to return (1-50, default 20).",
+                },
+            },
+        },
+    },
+    {
+        "name": "get_orders_list",
+        "description": (
+            "Return individual order ROWS (not aggregates). Use this when the "
+            "user asks about specific orders — biggest, most recent, most "
+            "delayed, by a particular customer, etc. Each row has id, "
+            "order_number, customer, status, warehouse, category, order_date, "
+            "expected_delivery, actual_delivery, total_value, and item_count "
+            "(items array is stripped to a count to keep tokens cheap)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                **_FILTER_PROPS_ORDERS,
+                "sort_by": {
+                    "type": "string",
+                    "enum": ["value", "date", "delay"],
+                    "description": "'value' (total_value desc — default), 'date' (order_date desc), 'delay' (delivery delay desc).",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Max rows to return (1-50, default 20).",
+                },
+            },
+        },
+    },
+    {
         "name": "get_inventory_summary",
         "description": (
             "Aggregate inventory snapshot: total item count, total inventory "
@@ -726,6 +885,8 @@ TOOL_SCHEMAS: List[dict] = [
 # Dispatch table — name → callable. Kept separate from the schema list so the
 # schema can be passed to Anthropic without dragging in callable references.
 TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
+    "get_inventory_items": get_inventory_items,
+    "get_orders_list": get_orders_list,
     "get_inventory_summary": get_inventory_summary,
     "get_low_stock": get_low_stock,
     "get_suppliers": get_suppliers,

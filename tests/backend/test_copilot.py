@@ -37,7 +37,7 @@ from copilot import tools, store, agent  # noqa: E402
 
 class TestCopilotTools:
     def test_tool_schemas_well_formed(self):
-        assert len(tools.TOOL_SCHEMAS) == 13
+        assert len(tools.TOOL_SCHEMAS) == 15
         for schema in tools.TOOL_SCHEMAS:
             assert "name" in schema
             assert "description" in schema
@@ -52,6 +52,39 @@ class TestCopilotTools:
         assert s["total_inventory_value"] > 400_000
         assert s["low_stock_count"] >= 1
         assert any(c["category"] == "Sensors" for c in s["by_category"])
+
+    def test_get_inventory_items_sorts_by_value_desc(self):
+        rows = tools.get_inventory_items(limit=5)
+        assert len(rows) == 5
+        values = [r["total_value"] for r in rows]
+        assert values == sorted(values, reverse=True)
+        # Required fields present
+        for r in rows:
+            assert {"sku", "name", "quantity_on_hand", "unit_cost", "total_value", "low_stock"} <= set(r)
+
+    def test_get_inventory_items_sort_by_quantity(self):
+        rows = tools.get_inventory_items(sort_by="quantity", limit=3)
+        qtys = [r["quantity_on_hand"] for r in rows]
+        assert qtys == sorted(qtys, reverse=True)
+
+    def test_get_inventory_items_warehouse_filter(self):
+        london = tools.get_inventory_items(warehouse="London", limit=50)
+        assert london
+        assert all(r["warehouse"] == "London" for r in london)
+
+    def test_get_inventory_items_limit_clamped(self):
+        # limit=0 floors to 1; limit=9999 caps to 50.
+        assert len(tools.get_inventory_items(limit=0)) == 1
+        assert len(tools.get_inventory_items(limit=9999)) <= 50
+
+    def test_get_orders_list_sorts_by_value_desc(self):
+        rows = tools.get_orders_list(limit=5)
+        assert len(rows) == 5
+        vals = [r["total_value"] for r in rows]
+        assert vals == sorted(vals, reverse=True)
+        # items[] stripped to a count
+        for r in rows:
+            assert "item_count" in r and "items" not in r
 
     def test_get_inventory_summary_warehouse_filter(self):
         all_items = tools.get_inventory_summary()["item_count"]
