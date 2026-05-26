@@ -1,0 +1,8 @@
+node_modules/
+client/node_modules/
+client/dist/
+server/.venv/
+server/data/*.json
+docs/architecture.html
+*.lock
+package-lock.json
