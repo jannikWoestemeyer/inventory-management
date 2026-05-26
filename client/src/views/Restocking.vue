@@ -77,7 +77,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="rec in recommendations" :key="rec.item_sku">
+              <tr v-for="rec in recommendations" :key="rec.item_sku" :data-copilot-sku="rec.item_sku">
                 <td><code>{{ rec.item_sku }}</code></td>
                 <td>{{ rec.item_name }}</td>
                 <td><span :class="['badge', rec.trend]">{{ rec.trend }}</span></td>

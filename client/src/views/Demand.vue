@@ -128,16 +128,12 @@ export default {
     // Use shared filters
     const { selectedLocation, selectedCategory, getCurrentFilters } = useFilters()
 
-    // Filter forecasts based on inventory filters
-    const forecasts = computed(() => {
-      if (selectedLocation.value === 'all' && selectedCategory.value === 'all') {
-        return allForecasts.value
-      }
-
-      // Get SKUs of items that match the filters
-      const validSkus = new Set(inventoryItems.value.map(item => item.sku))
-      return allForecasts.value.filter(f => validSkus.has(f.item_sku))
-    })
+    // Demand forecasts are globally aggregated — the JSON has no warehouse
+    // dimension. The previous SKU-join filter (forecasts whose SKU exists in
+    // the filtered inventory) zeroed out the page whenever a location filter
+    // was active, since forecast SKUs don't match inventory SKUs 1:1. Show
+    // every forecast regardless of filter; the page header explains scope.
+    const forecasts = computed(() => allForecasts.value)
 
     const loadForecasts = async () => {
       try {

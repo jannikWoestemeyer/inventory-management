@@ -49,7 +49,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in backlogItems" :key="item.id">
+              <tr v-for="item in backlogItems" :key="item.id" :data-copilot-sku="item.item_sku">
                 <td><strong>{{ item.order_id }}</strong></td>
                 <td><strong>{{ item.item_sku }}</strong></td>
                 <td>{{ translateProductName(item.item_name) }}</td>

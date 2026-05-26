@@ -130,6 +130,17 @@ class TestCopilotTools:
         out = tools.highlight_element(kind="bogus:thing")
         assert "error" in out
 
+    def test_highlight_element_accepts_sku_pattern(self):
+        out = tools.highlight_element(kind="sku:SRV-302", note="lowest stock")
+        assert out["queued_action"] == "highlight"
+        assert out["kind"] == "sku:SRV-302"
+
+    def test_highlight_element_rejects_invalid_sku_chars(self):
+        # SKUs are alphanumeric + dash/underscore; reject anything weirder so
+        # the frontend selector can't be tricked by quote injection.
+        out = tools.highlight_element(kind='sku:SRV"]><script>')
+        assert "error" in out
+
     def test_propose_restocking_order_signs_id_and_does_not_persist(self):
         plan = tools.propose_restocking_order(budget=50_000)
         assert plan["proposal_id"].count(".") == 1

@@ -71,7 +71,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in items" :key="item.id">
+              <tr v-for="item in items" :key="item.id" :data-copilot-sku="item.sku">
                 <td><code>{{ item.sku }}</code></td>
                 <td>{{ item.name }}</td>
                 <td>{{ item.category }}</td>

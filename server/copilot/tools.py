@@ -348,13 +348,21 @@ _HIGHLIGHT_KINDS = {
     "page:current",
 }
 
+# `sku:<SKU>` highlights one row in any inventory/low-stock/backlog/restocking
+# table tagged with data-copilot-sku. SKUs come from `get_low_stock` /
+# `get_inventory_summary` / etc. — anything matching this loose shape is OK.
+import re as _re
+_SKU_PATTERN = _re.compile(r"^sku:[A-Za-z0-9_\-]+$")
+
 
 def highlight_element(kind: str, note: Optional[str] = None) -> dict:
     """Pulse a soft outline around a UI element to direct the user's attention."""
-    if kind not in _HIGHLIGHT_KINDS:
+    is_sku = bool(_SKU_PATTERN.match(kind)) if isinstance(kind, str) else False
+    if kind not in _HIGHLIGHT_KINDS and not is_sku:
         return {
             "error": f"unknown highlight target: {kind}",
             "valid_kinds": sorted(_HIGHLIGHT_KINDS),
+            "hint": "Or use sku:<SKU> (e.g. 'sku:SRV-302') to highlight one table row.",
         }
     return {"queued_action": "highlight", "kind": kind, "note": note}
 
@@ -661,13 +669,26 @@ TOOL_SCHEMAS: List[dict] = [
             "properties": {
                 "kind": {
                     "type": "string",
-                    "enum": sorted(_HIGHLIGHT_KINDS),
                     "description": (
-                        "Highlight target. Prefer the most specific target you "
-                        "can: `card:*` for in-page sections, `nav:*` for tabs, "
-                        "`filter:*` for filter dropdowns. Only use "
-                        "`page:current` as a fallback — it pulses the whole "
-                        "content frame and is easy to miss."
+                        "Highlight target. Prefer the most specific target "
+                        "available. In order of specificity:\n"
+                        "  - `sku:<SKU>` — pulses ONE row in any table (e.g. "
+                        "'sku:SRV-302'). Use this whenever the user is asking "
+                        "about a specific item and that item is on the current "
+                        "page. This is the most precise highlight available.\n"
+                        "  - `card:<key>` — pulses one card / section. Valid "
+                        "keys include: " + ", ".join(
+                            sorted(k for k in _HIGHLIGHT_KINDS if k.startswith("card:"))
+                        ) + ".\n"
+                        "  - `nav:<page>` — pulses one nav tab. Valid: " + ", ".join(
+                            sorted(k for k in _HIGHLIGHT_KINDS if k.startswith("nav:"))
+                        ) + ".\n"
+                        "  - `filter:<which>` — pulses one filter dropdown. "
+                        "Valid: filter:period, filter:location, "
+                        "filter:category, filter:status.\n"
+                        "  - `page:current` — last-resort fallback; pulses the "
+                        "whole content frame. Easy to miss; only use when no "
+                        "more-specific target fits."
                     ),
                 },
                 "note": {

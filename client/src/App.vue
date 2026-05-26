@@ -872,28 +872,33 @@ input[type="range"]:active::-moz-range-thumb {
 }
 
 /* ------------------ Copilot pulse highlight ------------------
-   Added to any element the agent calls `highlight_element` on. We use a
-   thick high-contrast warning-amber OUTLINE (not box-shadow — outline is
-   crisper and never affected by overflow:hidden ancestors) plus a clear
-   inner tint, sustained for several seconds. The earlier subtle box-shadow
-   version was too easy to miss on full-width cards where the ring lived
-   at the viewport edges.
+   Added to any element the agent calls `highlight_element` on.
+   Neon magenta — chosen so it's clearly a system-overlay color the user
+   never sees in normal product UI. Three layers stacked at the peak:
+   (1) a 6px solid magenta outline, (2) an outer glow via filter:
+   drop-shadow that follows the element's actual border-radius, (3) a
+   subtle inner tint. Plus the animation has a hold phase so the peak
+   stays visible for ~1.5s instead of flashing past.
    The animationend handler in useCopilotStream.js strips the class. */
 @keyframes copilot-pulse {
-  0%   { outline-color: rgba(234, 88, 12, 0.00); background-color: rgba(234, 88, 12, 0.00); }
-  8%   { outline-color: rgba(234, 88, 12, 0.95); background-color: rgba(234, 88, 12, 0.18); }
-  50%  { outline-color: rgba(234, 88, 12, 0.70); background-color: rgba(234, 88, 12, 0.12); }
-  92%  { outline-color: rgba(234, 88, 12, 0.40); background-color: rgba(234, 88, 12, 0.04); }
-  100% { outline-color: rgba(234, 88, 12, 0.00); background-color: rgba(234, 88, 12, 0.00); }
+  0%   { outline-color: rgba(236, 72, 153, 0.00); background-color: rgba(236, 72, 153, 0.00); }
+  6%   { outline-color: rgba(236, 72, 153, 1.00); background-color: rgba(236, 72, 153, 0.20); }
+  /* Hold the peak from 6%→40% (~1.4s of a 4.2s anim) so it doesn't flash. */
+  40%  { outline-color: rgba(236, 72, 153, 0.95); background-color: rgba(236, 72, 153, 0.18); }
+  70%  { outline-color: rgba(236, 72, 153, 0.70); background-color: rgba(236, 72, 153, 0.10); }
+  100% { outline-color: rgba(236, 72, 153, 0.00); background-color: rgba(236, 72, 153, 0.00); }
 }
 .copilot-pulse {
-  /* 4s × 2 = 8s — long, unmissable, but ends before it becomes annoying. */
-  animation: copilot-pulse 4s ease-in-out 0s 2 both;
-  outline: 4px solid rgba(234, 88, 12, 0);
-  outline-offset: 4px;
+  /* 4.2s × 2 = 8.4s. Long, unmissable, but ends before it nags. */
+  animation: copilot-pulse 4.2s ease-in-out 0s 2 both;
+  outline: 6px solid rgba(236, 72, 153, 0);
+  outline-offset: 3px;
   border-radius: 10px;
   position: relative;
   z-index: 10;
+  /* Drop-shadow follows the rounded corners (box-shadow doesn't on outline
+     pseudo-rendering); 0 0 18px gives a neon-glow halo around the ring. */
+  filter: drop-shadow(0 0 18px rgba(236, 72, 153, 0.55));
 }
 
 /* ------------------ Scrollbar polish (subtle) ------------------ */

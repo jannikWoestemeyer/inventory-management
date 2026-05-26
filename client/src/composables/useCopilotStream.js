@@ -110,6 +110,12 @@ function normalizeFilterValue(filter, raw) {
 
 /** Translate a server-side highlight `kind` into a CSS selector. */
 function highlightSelectorFor(kind) {
+  // Table rows by SKU: data-copilot-sku="<SKU>". Escape any quotes so a
+  // hypothetical hostile SKU can't break out of the attribute selector.
+  if (kind?.startsWith?.('sku:')) {
+    const sku = kind.slice(4).replace(/"/g, '\\"')
+    return `[data-copilot-sku="${sku}"]`
+  }
   // Nav tabs: data-copilot-nav="<key>".
   if (kind?.startsWith?.('nav:')) {
     return `[data-copilot-nav="${kind.slice(4)}"]`
