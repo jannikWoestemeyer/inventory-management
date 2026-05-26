@@ -67,6 +67,17 @@ class InventoryItem(BaseModel):
     unit_cost: float
     location: str
     last_updated: str
+    supplier_name: Optional[str] = None
+    lead_time_days: Optional[int] = None
+
+
+class Supplier(BaseModel):
+    name: str
+    item_count: int
+    total_inventory_value: float
+    categories: List[str]
+    avg_lead_time_days: float
+    low_stock_count: int
 
 class Order(BaseModel):
     id: str
@@ -115,6 +126,21 @@ class CreateRestockingOrderRequest(BaseModel):
     items: List[RestockingOrderItem]
     budget: float
 
+
+class Task(BaseModel):
+    id: str
+    title: str
+    status: str = "pending"  # "pending" or "completed"
+    priority: Optional[str] = None
+    due_date: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class CreateTaskRequest(BaseModel):
+    title: str
+    priority: Optional[str] = None
+    due_date: Optional[str] = None
+
 class BacklogItem(BaseModel):
     id: str
     order_id: str
@@ -158,6 +184,16 @@ def get_inventory(
     """Get all inventory items with optional filtering"""
     return apply_filters(inventory_items, warehouse, category)
 
+@app.get("/api/inventory/low-stock", response_model=List[InventoryItem])
+def get_low_stock_items(
+    warehouse: Optional[str] = None,
+    category: Optional[str] = None,
+):
+    """Return inventory items at or below their reorder point (filter-aware)."""
+    filtered = apply_filters(inventory_items, warehouse, category)
+    return [item for item in filtered if item["quantity_on_hand"] <= item["reorder_point"]]
+
+
 @app.get("/api/inventory/{item_id}", response_model=InventoryItem)
 def get_inventory_item(item_id: str):
     """Get a specific inventory item"""
@@ -165,6 +201,60 @@ def get_inventory_item(item_id: str):
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     return item
+
+
+@app.get("/api/suppliers", response_model=List[Supplier])
+def get_suppliers(
+    warehouse: Optional[str] = None,
+    category: Optional[str] = None,
+):
+    """Aggregate suppliers across the (filtered) inventory: item count, value,
+    categories supplied, average lead time, and how many items are at or below
+    reorder point."""
+    filtered = apply_filters(inventory_items, warehouse, category)
+
+    by_supplier: dict = {}
+    for item in filtered:
+        name = item.get("supplier_name") or "Unknown"
+        bucket = by_supplier.setdefault(
+            name,
+            {
+                "name": name,
+                "item_count": 0,
+                "total_inventory_value": 0.0,
+                "categories": set(),
+                "lead_time_sum": 0,
+                "lead_time_n": 0,
+                "low_stock_count": 0,
+            },
+        )
+        bucket["item_count"] += 1
+        bucket["total_inventory_value"] += item["quantity_on_hand"] * item["unit_cost"]
+        bucket["categories"].add(item["category"])
+        if item.get("lead_time_days") is not None:
+            bucket["lead_time_sum"] += item["lead_time_days"]
+            bucket["lead_time_n"] += 1
+        if item["quantity_on_hand"] <= item["reorder_point"]:
+            bucket["low_stock_count"] += 1
+
+    out: List[dict] = []
+    for s in by_supplier.values():
+        out.append(
+            {
+                "name": s["name"],
+                "item_count": s["item_count"],
+                "total_inventory_value": round(s["total_inventory_value"], 2),
+                "categories": sorted(s["categories"]),
+                "avg_lead_time_days": (
+                    round(s["lead_time_sum"] / s["lead_time_n"], 1)
+                    if s["lead_time_n"]
+                    else 0.0
+                ),
+                "low_stock_count": s["low_stock_count"],
+            }
+        )
+    out.sort(key=lambda x: x["total_inventory_value"], reverse=True)
+    return out
 
 @app.get("/api/orders", response_model=List[Order])
 def get_orders(
@@ -253,12 +343,19 @@ def get_recent_transactions():
     return recent_transactions
 
 @app.get("/api/reports/quarterly")
-def get_quarterly_reports():
-    """Get quarterly performance reports"""
-    # Calculate quarterly statistics from orders
+def get_quarterly_reports(
+    warehouse: Optional[str] = None,
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    month: Optional[str] = None,
+):
+    """Get quarterly performance reports honoring the global filters."""
+    filtered_orders = apply_filters(orders, warehouse, category, status)
+    filtered_orders = filter_by_month(filtered_orders, month)
+
     quarters = {}
 
-    for order in orders:
+    for order in filtered_orders:
         order_date = order.get('order_date', '')
         # Determine quarter
         if '2025-01' in order_date or '2025-02' in order_date or '2025-03' in order_date:
@@ -299,11 +396,19 @@ def get_quarterly_reports():
     return result
 
 @app.get("/api/reports/monthly-trends")
-def get_monthly_trends():
-    """Get month-over-month trends"""
+def get_monthly_trends(
+    warehouse: Optional[str] = None,
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    month: Optional[str] = None,
+):
+    """Get month-over-month trends honoring the global filters."""
+    filtered_orders = apply_filters(orders, warehouse, category, status)
+    filtered_orders = filter_by_month(filtered_orders, month)
+
     months = {}
 
-    for order in orders:
+    for order in filtered_orders:
         order_date = order.get('order_date', '')
         if not order_date:
             continue
@@ -331,6 +436,53 @@ def get_monthly_trends():
 
 # In-memory store for restocking orders (resets on server restart)
 submitted_restocking_orders: List[dict] = []
+
+# In-memory store for user tasks (resets on server restart)
+user_tasks: List[dict] = []
+
+
+@app.get("/api/tasks", response_model=List[Task])
+def list_tasks():
+    """Return all user tasks (in-memory, resets on server restart)."""
+    return user_tasks
+
+
+@app.post("/api/tasks", response_model=Task, status_code=201)
+def create_task(payload: CreateTaskRequest):
+    """Create a new task."""
+    from datetime import datetime, timezone
+
+    next_id = str(len(user_tasks) + 1)
+    task = {
+        "id": next_id,
+        "title": payload.title,
+        "status": "pending",
+        "priority": payload.priority,
+        "due_date": payload.due_date,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    user_tasks.append(task)
+    return task
+
+
+@app.delete("/api/tasks/{task_id}")
+def delete_task(task_id: str):
+    """Delete a task by id."""
+    for i, t in enumerate(user_tasks):
+        if t["id"] == task_id:
+            user_tasks.pop(i)
+            return {"deleted": task_id}
+    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+
+@app.patch("/api/tasks/{task_id}", response_model=Task)
+def toggle_task(task_id: str):
+    """Toggle a task's status between 'pending' and 'completed'."""
+    for t in user_tasks:
+        if t["id"] == task_id:
+            t["status"] = "completed" if t["status"] == "pending" else "pending"
+            return t
+    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
 
 @app.get("/api/restocking/orders", response_model=List[RestockingOrder])
