@@ -9,6 +9,8 @@ export default {
     reports: 'Reports',
     restocking: 'Restocking',
     backlog: 'Backlog',
+    suppliers: 'Suppliers',
+    lowStock: 'Low Stock',
     companyName: 'Catalyst Components',
     subtitle: 'Inventory Management System'
   },
@@ -367,6 +369,61 @@ export default {
       unitsShort: 'units short',
       days: 'days'
     }
+  },
+
+  // Suppliers
+  suppliers: {
+    title: 'Suppliers',
+    description: 'Per-supplier inventory value, lead time, and low-stock exposure',
+    summary: {
+      totalSuppliers: 'Total Suppliers',
+      totalInventoryValue: 'Total Inventory Value',
+      avgItemsPerSupplier: 'Avg Items per Supplier',
+      suppliersWithLowStock: 'Suppliers w/ Low Stock'
+    },
+    table: {
+      title: 'Supplier Breakdown',
+      supplier: 'Supplier',
+      itemCount: 'Items',
+      inventoryValue: 'Inventory Value',
+      categories: 'Categories',
+      avgLeadTime: 'Avg Lead Time',
+      lowStock: 'Low Stock'
+    },
+    days: 'days',
+    noData: 'No suppliers match the current filters.'
+  },
+
+  // Low-stock alerts
+  lowStock: {
+    title: 'Low Stock Alerts',
+    description: 'Items at or below their reorder point — these need replenishment',
+    healthy: {
+      title: 'All clear',
+      message: 'No items are below their reorder point under the current filters.'
+    },
+    severityCritical: 'Critical',
+    severityWarning: 'Warning',
+    summary: {
+      itemsBelow: 'Items Below Reorder',
+      criticalCount: 'Critical (≤ 50%)',
+      warningCount: 'Warning (50–100%)',
+      atRiskValue: 'At-Risk Inventory Value'
+    },
+    table: {
+      title: 'Items needing restock',
+      sku: 'SKU',
+      item: 'Item',
+      category: 'Category',
+      warehouse: 'Warehouse',
+      supplier: 'Supplier',
+      onHand: 'On Hand',
+      reorderPoint: 'Reorder Point',
+      gap: 'Gap',
+      severity: 'Severity',
+      leadTime: 'Lead Time'
+    },
+    days: 'days'
   },
 
   // Common

@@ -67,6 +67,17 @@ class InventoryItem(BaseModel):
     unit_cost: float
     location: str
     last_updated: str
+    supplier_name: Optional[str] = None
+    lead_time_days: Optional[int] = None
+
+
+class Supplier(BaseModel):
+    name: str
+    item_count: int
+    total_inventory_value: float
+    categories: List[str]
+    avg_lead_time_days: float
+    low_stock_count: int
 
 class Order(BaseModel):
     id: str
@@ -173,6 +184,16 @@ def get_inventory(
     """Get all inventory items with optional filtering"""
     return apply_filters(inventory_items, warehouse, category)
 
+@app.get("/api/inventory/low-stock", response_model=List[InventoryItem])
+def get_low_stock_items(
+    warehouse: Optional[str] = None,
+    category: Optional[str] = None,
+):
+    """Return inventory items at or below their reorder point (filter-aware)."""
+    filtered = apply_filters(inventory_items, warehouse, category)
+    return [item for item in filtered if item["quantity_on_hand"] <= item["reorder_point"]]
+
+
 @app.get("/api/inventory/{item_id}", response_model=InventoryItem)
 def get_inventory_item(item_id: str):
     """Get a specific inventory item"""
@@ -180,6 +201,60 @@ def get_inventory_item(item_id: str):
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     return item
+
+
+@app.get("/api/suppliers", response_model=List[Supplier])
+def get_suppliers(
+    warehouse: Optional[str] = None,
+    category: Optional[str] = None,
+):
+    """Aggregate suppliers across the (filtered) inventory: item count, value,
+    categories supplied, average lead time, and how many items are at or below
+    reorder point."""
+    filtered = apply_filters(inventory_items, warehouse, category)
+
+    by_supplier: dict = {}
+    for item in filtered:
+        name = item.get("supplier_name") or "Unknown"
+        bucket = by_supplier.setdefault(
+            name,
+            {
+                "name": name,
+                "item_count": 0,
+                "total_inventory_value": 0.0,
+                "categories": set(),
+                "lead_time_sum": 0,
+                "lead_time_n": 0,
+                "low_stock_count": 0,
+            },
+        )
+        bucket["item_count"] += 1
+        bucket["total_inventory_value"] += item["quantity_on_hand"] * item["unit_cost"]
+        bucket["categories"].add(item["category"])
+        if item.get("lead_time_days") is not None:
+            bucket["lead_time_sum"] += item["lead_time_days"]
+            bucket["lead_time_n"] += 1
+        if item["quantity_on_hand"] <= item["reorder_point"]:
+            bucket["low_stock_count"] += 1
+
+    out: List[dict] = []
+    for s in by_supplier.values():
+        out.append(
+            {
+                "name": s["name"],
+                "item_count": s["item_count"],
+                "total_inventory_value": round(s["total_inventory_value"], 2),
+                "categories": sorted(s["categories"]),
+                "avg_lead_time_days": (
+                    round(s["lead_time_sum"] / s["lead_time_n"], 1)
+                    if s["lead_time_n"]
+                    else 0.0
+                ),
+                "low_stock_count": s["low_stock_count"],
+            }
+        )
+    out.sort(key=lambda x: x["total_inventory_value"], reverse=True)
+    return out
 
 @app.get("/api/orders", response_model=List[Order])
 def get_orders(
