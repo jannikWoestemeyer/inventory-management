@@ -8,7 +8,7 @@
     <div v-if="loading" class="loading">{{ t('common.loading') }}</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else>
-      <div class="stats-grid">
+      <div class="stats-grid" data-copilot-card="backlog-summary">
         <div class="stat-card danger">
           <div class="stat-label">{{ t('backlog.highPriority') }}</div>
           <div class="stat-value">{{ getBacklogByPriority('high').length }}</div>
@@ -27,7 +27,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" data-copilot-card="backlog-table">
         <div class="card-header">
           <h3 class="card-title">{{ t('backlog.items') }}</h3>
         </div>
@@ -49,7 +49,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in backlogItems" :key="item.id">
+              <tr v-for="item in backlogItems" :key="item.id" :data-copilot-sku="item.item_sku">
                 <td><strong>{{ item.order_id }}</strong></td>
                 <td><strong>{{ item.item_sku }}</strong></td>
                 <td>{{ translateProductName(item.item_name) }}</td>

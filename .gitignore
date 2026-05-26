@@ -52,3 +52,6 @@ logs/
 
 # Environment variables
 .env
+
+# Ops Copilot on-disk conversation history (user-specific, never commit)
+.copilot/

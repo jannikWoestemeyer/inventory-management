@@ -1,8 +1,14 @@
+import json
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from typing import List, Optional
 from pydantic import BaseModel
 from mock_data import inventory_items, orders, demand_forecasts, backlog_items, spending_summary, monthly_spending, category_spending, recent_transactions, purchase_orders
+
+from copilot.agent import run_chat
+from copilot.tools import consume_proposal
 
 app = FastAPI(title="Factory Inventory Management System")
 
@@ -521,6 +527,89 @@ def create_restocking_order(payload: CreateRestockingOrderRequest):
     }
     submitted_restocking_orders.append(order)
     return order
+
+
+# ---------------------------------------------------------------------------
+# Ops Copilot — Anthropic-powered chat
+# ---------------------------------------------------------------------------
+
+class CopilotPageContext(BaseModel):
+    route: Optional[str] = None
+    filters: Optional[dict] = None
+
+
+class CopilotChatRequest(BaseModel):
+    conversation_id: str
+    user_message: str
+    page_context: Optional[CopilotPageContext] = None
+
+
+@app.post("/api/copilot/chat")
+async def copilot_chat(payload: CopilotChatRequest):
+    """Stream agent events back to the UI as SSE.
+
+    Each event is `data: <json>\\n\\n` where the JSON object is one of the
+    yields from `agent.run_chat` (text delta, tool_use, tool_result, proposal,
+    error, or done).
+    """
+
+    async def event_stream():
+        page_ctx = payload.page_context.model_dump(exclude_none=True) if payload.page_context else None
+        try:
+            async for event in run_chat(
+                conversation_id=payload.conversation_id,
+                user_message=payload.user_message,
+                page_context=page_ctx,
+            ):
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as e:
+            err = {"type": "error", "message": f"{type(e).__name__}: {e}"}
+            yield f"data: {json.dumps(err)}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'stop_reason': 'error'})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable proxy buffering if any
+        },
+    )
+
+
+class CopilotApproveRequest(BaseModel):
+    proposal_id: str
+    conversation_id: Optional[str] = None  # accepted for logging, not required
+
+
+@app.post("/api/copilot/approve")
+def copilot_approve(payload: CopilotApproveRequest):
+    """Commit a proposal previously emitted by the agent. Only `restocking_order`
+    proposals are supported today; extra `kind` values can be added here."""
+    plan = consume_proposal(payload.proposal_id)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="proposal not found or already used")
+
+    if plan.get("kind") == "restocking_order":
+        # Reuse the in-memory store from the existing restocking endpoint so
+        # the order shows up in the Orders tab's "Submitted Orders" section.
+        from datetime import datetime, timezone
+
+        next_id = str(len(submitted_restocking_orders) + 1)
+        order_number = f"RST-2025-{int(next_id):04d}"
+        order = {
+            "id": next_id,
+            "order_number": order_number,
+            "items": plan["items"],
+            "total_value": plan["total_value"],
+            "budget": plan["budget"],
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
+            "max_lead_time_days": plan["max_lead_time_days"],
+        }
+        submitted_restocking_orders.append(order)
+        return {"committed": True, "order": order}
+
+    raise HTTPException(status_code=400, detail=f"unsupported proposal kind: {plan.get('kind')}")
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@
     </div>
     <div v-else>
       <!-- Quarterly Performance -->
-      <div class="card" v-if="quarterlyData.length > 0">
+      <div class="card" v-if="quarterlyData.length > 0" data-copilot-card="reports-quarterly">
         <div class="card-header">
           <h3 class="card-title">{{ t('reports.quarterly.title') }}</h3>
         </div>
@@ -45,7 +45,7 @@
       </div>
 
       <!-- Monthly Trends Chart -->
-      <div class="card" v-if="monthlyData.length > 0">
+      <div class="card" v-if="monthlyData.length > 0" data-copilot-card="reports-trend">
         <div class="card-header">
           <h3 class="card-title">{{ t('reports.monthly.title') }}</h3>
         </div>

@@ -8,7 +8,7 @@
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else>
       <!-- Key Performance Indicators -->
-      <div class="kpi-section">
+      <div class="kpi-section" data-copilot-card="dashboard-kpi">
         <h3 class="section-title">{{ t('dashboard.kpi.title') }}</h3>
         <div class="kpi-grid">
           <div class="kpi-card">
@@ -76,7 +76,7 @@
       <!-- Charts Grid -->
       <div class="charts-grid">
         <!-- Order Health Dashboard -->
-        <div class="card chart-card">
+        <div class="card chart-card" data-copilot-card="dashboard-order-health">
           <div class="card-header">
             <h3 class="card-title">{{ t('dashboard.orderHealth.title') }}</h3>
           </div>

@@ -52,6 +52,7 @@
               <tr
                 v-for="item in filteredItems"
                 :key="item.id"
+                :data-copilot-sku="item.sku"
                 class="clickable-row"
                 @click="showItemDetail(item)"
               >

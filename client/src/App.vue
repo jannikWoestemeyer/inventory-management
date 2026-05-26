@@ -7,34 +7,34 @@
           <span class="subtitle">{{ t('nav.subtitle') }}</span>
         </div>
         <nav class="nav-tabs">
-          <router-link to="/" :class="{ active: $route.path === '/' }">
+          <router-link to="/" data-copilot-nav="overview" :class="{ active: $route.path === '/' }">
             {{ t('nav.overview') }}
           </router-link>
-          <router-link to="/inventory" :class="{ active: $route.path === '/inventory' }">
+          <router-link to="/inventory" data-copilot-nav="inventory" :class="{ active: $route.path === '/inventory' }">
             {{ t('nav.inventory') }}
           </router-link>
-          <router-link to="/orders" :class="{ active: $route.path === '/orders' }">
+          <router-link to="/orders" data-copilot-nav="orders" :class="{ active: $route.path === '/orders' }">
             {{ t('nav.orders') }}
           </router-link>
-          <router-link to="/spending" :class="{ active: $route.path === '/spending' }">
+          <router-link to="/spending" data-copilot-nav="finance" :class="{ active: $route.path === '/spending' }">
             {{ t('nav.finance') }}
           </router-link>
-          <router-link to="/demand" :class="{ active: $route.path === '/demand' }">
+          <router-link to="/demand" data-copilot-nav="demand" :class="{ active: $route.path === '/demand' }">
             {{ t('nav.demandForecast') }}
           </router-link>
-          <router-link to="/reports" :class="{ active: $route.path === '/reports' }">
+          <router-link to="/reports" data-copilot-nav="reports" :class="{ active: $route.path === '/reports' }">
             {{ t('nav.reports') }}
           </router-link>
-          <router-link to="/restocking" :class="{ active: $route.path === '/restocking' }">
+          <router-link to="/restocking" data-copilot-nav="restocking" :class="{ active: $route.path === '/restocking' }">
             {{ t('nav.restocking') }}
           </router-link>
-          <router-link to="/backlog" :class="{ active: $route.path === '/backlog' }">
+          <router-link to="/backlog" data-copilot-nav="backlog" :class="{ active: $route.path === '/backlog' }">
             {{ t('nav.backlog') }}
           </router-link>
-          <router-link to="/suppliers" :class="{ active: $route.path === '/suppliers' }">
+          <router-link to="/suppliers" data-copilot-nav="suppliers" :class="{ active: $route.path === '/suppliers' }">
             {{ t('nav.suppliers') }}
           </router-link>
-          <router-link to="/low-stock" :class="{ active: $route.path === '/low-stock' }">
+          <router-link to="/low-stock" data-copilot-nav="low-stock" :class="{ active: $route.path === '/low-stock' }">
             {{ t('nav.lowStock') }}
           </router-link>
         </nav>
@@ -71,6 +71,9 @@
       @delete-task="deleteTask"
       @toggle-task="toggleTask"
     />
+
+    <CopilotPanel :is-open="copilotOpen" />
+    <CopilotFab :is-open="copilotOpen" @toggle="copilotOpen = !copilotOpen" />
   </div>
 </template>
 
@@ -84,6 +87,8 @@ import ProfileMenu from './components/ProfileMenu.vue'
 import ProfileDetailsModal from './components/ProfileDetailsModal.vue'
 import TasksModal from './components/TasksModal.vue'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
+import CopilotFab from './components/CopilotFab.vue'
+import CopilotPanel from './components/CopilotPanel.vue'
 
 const THEME_STORAGE_KEY = 'inventory-app-theme'
 
@@ -94,7 +99,9 @@ export default {
     ProfileMenu,
     ProfileDetailsModal,
     TasksModal,
-    LanguageSwitcher
+    LanguageSwitcher,
+    CopilotFab,
+    CopilotPanel
   },
   setup() {
     const { currentUser } = useAuth()
@@ -102,6 +109,7 @@ export default {
     const showProfileDetails = ref(false)
     const showTasks = ref(false)
     const apiTasks = ref([])
+    const copilotOpen = ref(false)
 
     // Theme: prefer stored choice, else honor prefers-color-scheme, else light
     const initialTheme = () => {
@@ -199,7 +207,8 @@ export default {
       tasks,
       addTask,
       deleteTask,
-      toggleTask
+      toggleTask,
+      copilotOpen
     }
   }
 }
@@ -860,6 +869,63 @@ input[type="range"]:active::-webkit-slider-thumb {
 input[type="range"]:active::-moz-range-thumb {
   cursor: grabbing;
   transform: rotate(-1deg) scale(1.05);
+}
+
+/* ------------------ Copilot pulse highlight ------------------
+   Added to any element the agent calls `highlight_element` on.
+   Neon magenta — clearly a system-overlay color the user never sees in
+   normal product UI. Two variants because <tr> elements behave badly
+   with outlines (clipped by .table-container's overflow:auto and
+   styled inconsistently across browsers):
+
+   - Default (cards, nav links, filter groups): outline + drop-shadow
+     glow + inner tint
+   - <tr>: background flash + thick left-border accent, no outline
+
+   The animationend handler in useCopilotStream.js strips the class. */
+@keyframes copilot-pulse {
+  0%   { outline-color: rgba(236, 72, 153, 0.00); background-color: rgba(236, 72, 153, 0.00); }
+  4%   { outline-color: rgba(236, 72, 153, 1.00); background-color: rgba(236, 72, 153, 0.22); }
+  /* Long hold so the user can actually scan to the highlighted thing. */
+  60%  { outline-color: rgba(236, 72, 153, 0.95); background-color: rgba(236, 72, 153, 0.20); }
+  85%  { outline-color: rgba(236, 72, 153, 0.65); background-color: rgba(236, 72, 153, 0.10); }
+  100% { outline-color: rgba(236, 72, 153, 0.00); background-color: rgba(236, 72, 153, 0.00); }
+}
+
+@keyframes copilot-pulse-row {
+  /* Row variant: oscillate the background between cycles so the eye
+     catches it as "actively pulsing" instead of "statically tinted". */
+  0%   { background-color: rgba(236, 72, 153, 0.00); }
+  20%  { background-color: rgba(236, 72, 153, 0.35); }
+  50%  { background-color: rgba(236, 72, 153, 0.15); }
+  80%  { background-color: rgba(236, 72, 153, 0.35); }
+  100% { background-color: rgba(236, 72, 153, 0.15); }
+}
+
+.copilot-pulse {
+  /* 5s × 3 = 15s — long enough to act on, ends before it nags. */
+  animation: copilot-pulse 5s ease-in-out 0s 3 both;
+  outline: 6px solid rgba(236, 72, 153, 0);
+  outline-offset: 3px;
+  border-radius: 10px;
+  position: relative;
+  z-index: 10;
+  filter: drop-shadow(0 0 18px rgba(236, 72, 153, 0.55));
+}
+
+/* Table-row variant — outlines are unreliable on <tr> (clipped by
+   overflow:auto on table-container, inconsistent z-stacking). We use
+   a strong background flash and a thick magenta left-border accent
+   instead. !important defeats `tr:hover` and dark-mode tints. */
+tr.copilot-pulse {
+  animation: copilot-pulse-row 2.5s ease-in-out 0s 6 both;
+  outline: none !important;
+  filter: none;
+  border-left: 4px solid #ec4899 !important;
+  box-shadow: inset 4px 0 0 #ec4899;
+}
+tr.copilot-pulse > td {
+  background-color: inherit !important;
 }
 
 /* ------------------ Scrollbar polish (subtle) ------------------ */

@@ -8,7 +8,7 @@
     <div v-if="loading" class="loading">Loading demand forecast…</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else>
-      <div class="card">
+      <div class="card" data-copilot-card="restocking-budget">
         <div class="card-header">
           <h3 class="card-title">Budget</h3>
           <div class="budget-display">${{ budget.toLocaleString() }}</div>
@@ -28,7 +28,7 @@
         </div>
       </div>
 
-      <div class="stats-grid">
+      <div class="stats-grid" data-copilot-card="restocking-summary">
         <div class="stat-card info">
           <div class="stat-label">Items recommended</div>
           <div class="stat-value">{{ recommendations.length }}</div>
@@ -47,7 +47,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" data-copilot-card="restocking-table">
         <div class="card-header">
           <h3 class="card-title">Recommended items ({{ recommendations.length }})</h3>
           <button
@@ -77,7 +77,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="rec in recommendations" :key="rec.item_sku">
+              <tr v-for="rec in recommendations" :key="rec.item_sku" :data-copilot-sku="rec.item_sku">
                 <td><code>{{ rec.item_sku }}</code></td>
                 <td>{{ rec.item_name }}</td>
                 <td><span :class="['badge', rec.trend]">{{ rec.trend }}</span></td>
