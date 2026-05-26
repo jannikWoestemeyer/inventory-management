@@ -2,7 +2,7 @@
   <div class="filters-bar">
     <div class="filters-container">
       <div class="filters-grid">
-        <div class="filter-group">
+        <div class="filter-group" data-copilot-filter="period">
           <label>{{ t('filters.timePeriod') }}</label>
           <select v-model="selectedPeriod" class="filter-select">
             <option value="all">{{ t('filters.allMonths') }}</option>
@@ -21,7 +21,7 @@
           </select>
         </div>
 
-        <div class="filter-group">
+        <div class="filter-group" data-copilot-filter="location">
           <label>{{ t('filters.location') }}</label>
           <select v-model="selectedLocation" class="filter-select">
             <option value="all">{{ t('filters.all') }}</option>
@@ -31,7 +31,7 @@
           </select>
         </div>
 
-        <div class="filter-group">
+        <div class="filter-group" data-copilot-filter="category">
           <label>{{ t('filters.category') }}</label>
           <select v-model="selectedCategory" class="filter-select">
             <option value="all">{{ t('filters.all') }}</option>
@@ -43,7 +43,7 @@
           </select>
         </div>
 
-        <div class="filter-group">
+        <div class="filter-group" data-copilot-filter="status">
           <label>{{ t('filters.orderStatus') }}</label>
           <select v-model="selectedStatus" class="filter-select">
             <option value="all">{{ t('filters.all') }}</option>

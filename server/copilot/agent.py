@@ -31,13 +31,22 @@ from . import store
 from .tools import TOOL_SCHEMAS, run_tool
 
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "claude-haiku-4-5"
 MAX_TURNS = 8  # bound the tool-call loop so a wedged model can't spin forever
 
 
-SYSTEM_PROMPT = """You are the Ops Copilot for a factory inventory management web app called Catalyst Components. The user is operating the dashboard; you sit in a side panel and help them reason across pages.
+SYSTEM_PROMPT = """You are the Ops Copilot for a factory inventory management web app called Catalyst Components. The user is operating the dashboard; you sit in a side panel and help them reason across pages — AND you can drive the UI directly.
 
-You have read-only tools that wrap the same API endpoints the dashboard uses (inventory, orders, suppliers, low-stock, demand forecast, reports, spending) plus one proposal-only tool (`propose_restocking_order`) that drafts a restocking order but does NOT submit it — the user must click an Approve button surfaced in the UI.
+You have three groups of tools:
+
+(1) READ-ONLY DATA TOOLS — wrap the same API endpoints the dashboard uses (inventory, orders, suppliers, low-stock, demand forecast, reports, spending). Use these whenever the user asks about a slice of data.
+
+(2) UI CONTROL TOOLS — you can navigate pages, set filters, and highlight elements:
+- `navigate_to_page(route)` — take the user to a different page. Don't ask permission; just do it when they ask to "show", "open", or "go to" a page, or when the answer to their question lives on another page.
+- `set_filter(filter, value)` — apply one of the global filters (period / location / category / status). When the user asks a scoped question (e.g. "in Tokyo", "for Q3"), apply the matching filter so the dashboard mirrors what you're talking about.
+- `highlight_element(kind)` — pulse a soft outline around a specific UI element to direct attention. USE THIS LIBERALLY when explaining: if you reference the Suppliers tab, highlight `nav:suppliers`; if you talk about filtering by warehouse, highlight `filter:location`; if you mention a page, highlight `nav:<page>`. Multiple highlights across a turn are fine and welcome — it makes your explanations feel grounded.
+
+(3) PROPOSAL-ONLY MUTATION — `propose_restocking_order(budget)` returns a draft + an Approve button surfaced in the UI. The user must click Approve before it commits. Always summarize the plan in plain English so they know what they're approving.
 
 How to behave:
 - Be concise. The panel is narrow; long answers are hard to read.
@@ -45,7 +54,7 @@ How to behave:
 - The user has filters set in the dashboard (warehouse, category, status, time period). Each user message includes a JSON block with the current `route` and `filters`. Default to using those filters in your tool calls unless the user clearly asks for something broader (e.g. "across all warehouses").
 - After tool calls, synthesize — don't just dump raw JSON back to the user.
 - For numbers, prefer "$141K" / "1.4M" formatting over raw floats.
-- When you propose a restocking order, summarize it in plain English (item count, total, max lead time, top 2-3 items) so the user knows what they'd be approving.
+- **Be a guide, not just a chatbot.** When you mention a page, navigate them there. When you reference a UI control, highlight it. When you cite a filter value, set it. This is what makes you an Ops Copilot vs. a read-only Q&A bot.
 - If the user asks for something that would require writing data the tools don't support (e.g. delete an order, edit inventory), say so plainly — don't pretend you did it.
 - No emojis. The product UI is professional / handwritten-sketchbook themed.
 """
@@ -115,13 +124,15 @@ async def run_chat(
         # can both (a) ship them on the wire to the UI and (b) persist them as
         # discrete events to the JSONL store.
         try:
+            # Note: no `thinking` param. Adaptive thinking is Opus 4.6+ /
+            # Sonnet 4.6 only; Haiku 4.5 doesn't accept it. Skipping thinking
+            # also keeps the loop snappy for an interactive copilot.
             with client.messages.stream(
                 model=MODEL,
                 max_tokens=4096,
                 system=_build_system_blocks(),  # type: ignore[arg-type]
                 tools=TOOL_SCHEMAS,  # type: ignore[arg-type]
                 messages=messages,  # type: ignore[arg-type]
-                thinking={"type": "adaptive"},
             ) as stream:
                 # Stream raw text deltas to the UI as Claude produces them.
                 # The stream helper also accumulates a final Message for us.
@@ -227,6 +238,21 @@ async def run_chat(
                     "name": block.name,
                     "result": parsed,
                 }
+
+            # UI-control tools (navigate / set_filter / highlight) return a
+            # `queued_action` payload. We piggyback a separate `ui_action`
+            # event on the SSE stream so the frontend can react — the model
+            # already has the tool_result ack so it continues narrating.
+            if (
+                isinstance(parsed, dict)
+                and "queued_action" in parsed
+                and "error" not in parsed
+            ):
+                store.append_event(
+                    conversation_id,
+                    {"kind": "ui_action", "action": parsed},
+                )
+                yield {"type": "ui_action", "action": parsed}
 
         messages.append({"role": "user", "content": tool_result_content})
 

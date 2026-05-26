@@ -7,34 +7,34 @@
           <span class="subtitle">{{ t('nav.subtitle') }}</span>
         </div>
         <nav class="nav-tabs">
-          <router-link to="/" :class="{ active: $route.path === '/' }">
+          <router-link to="/" data-copilot-nav="overview" :class="{ active: $route.path === '/' }">
             {{ t('nav.overview') }}
           </router-link>
-          <router-link to="/inventory" :class="{ active: $route.path === '/inventory' }">
+          <router-link to="/inventory" data-copilot-nav="inventory" :class="{ active: $route.path === '/inventory' }">
             {{ t('nav.inventory') }}
           </router-link>
-          <router-link to="/orders" :class="{ active: $route.path === '/orders' }">
+          <router-link to="/orders" data-copilot-nav="orders" :class="{ active: $route.path === '/orders' }">
             {{ t('nav.orders') }}
           </router-link>
-          <router-link to="/spending" :class="{ active: $route.path === '/spending' }">
+          <router-link to="/spending" data-copilot-nav="finance" :class="{ active: $route.path === '/spending' }">
             {{ t('nav.finance') }}
           </router-link>
-          <router-link to="/demand" :class="{ active: $route.path === '/demand' }">
+          <router-link to="/demand" data-copilot-nav="demand" :class="{ active: $route.path === '/demand' }">
             {{ t('nav.demandForecast') }}
           </router-link>
-          <router-link to="/reports" :class="{ active: $route.path === '/reports' }">
+          <router-link to="/reports" data-copilot-nav="reports" :class="{ active: $route.path === '/reports' }">
             {{ t('nav.reports') }}
           </router-link>
-          <router-link to="/restocking" :class="{ active: $route.path === '/restocking' }">
+          <router-link to="/restocking" data-copilot-nav="restocking" :class="{ active: $route.path === '/restocking' }">
             {{ t('nav.restocking') }}
           </router-link>
-          <router-link to="/backlog" :class="{ active: $route.path === '/backlog' }">
+          <router-link to="/backlog" data-copilot-nav="backlog" :class="{ active: $route.path === '/backlog' }">
             {{ t('nav.backlog') }}
           </router-link>
-          <router-link to="/suppliers" :class="{ active: $route.path === '/suppliers' }">
+          <router-link to="/suppliers" data-copilot-nav="suppliers" :class="{ active: $route.path === '/suppliers' }">
             {{ t('nav.suppliers') }}
           </router-link>
-          <router-link to="/low-stock" :class="{ active: $route.path === '/low-stock' }">
+          <router-link to="/low-stock" data-copilot-nav="low-stock" :class="{ active: $route.path === '/low-stock' }">
             {{ t('nav.lowStock') }}
           </router-link>
         </nav>
@@ -869,6 +869,23 @@ input[type="range"]:active::-webkit-slider-thumb {
 input[type="range"]:active::-moz-range-thumb {
   cursor: grabbing;
   transform: rotate(-1deg) scale(1.05);
+}
+
+/* ------------------ Copilot pulse highlight ------------------
+   Added briefly to any element the agent calls `highlight_element` on.
+   The animationend handler in useCopilotStream.js strips the class after
+   the keyframes finish so the DOM stays clean. */
+@keyframes copilot-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(59, 111, 179, 0.55), 0 0 0 0 rgba(59, 111, 179, 0.18); }
+  60%  { box-shadow: 0 0 0 8px rgba(59, 111, 179, 0.00), 0 0 0 14px rgba(59, 111, 179, 0.00); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 111, 179, 0.00), 0 0 0 0 rgba(59, 111, 179, 0.00); }
+}
+.copilot-pulse {
+  animation: copilot-pulse 1.6s ease-out 0s 2 both;
+  border-radius: 10px;
+  /* Keep the underlying element interactive — pulse is purely cosmetic. */
+  position: relative;
+  z-index: 10;
 }
 
 /* ------------------ Scrollbar polish (subtle) ------------------ */

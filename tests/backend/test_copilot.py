@@ -37,7 +37,7 @@ from copilot import tools, store, agent  # noqa: E402
 
 class TestCopilotTools:
     def test_tool_schemas_well_formed(self):
-        assert len(tools.TOOL_SCHEMAS) == 10
+        assert len(tools.TOOL_SCHEMAS) == 13
         for schema in tools.TOOL_SCHEMAS:
             assert "name" in schema
             assert "description" in schema
@@ -102,6 +102,33 @@ class TestCopilotTools:
     def test_get_spending_breakdown_keys(self):
         s = tools.get_spending_breakdown()
         assert set(s.keys()) == {"summary", "monthly", "by_category"}
+
+    def test_navigate_to_page_valid(self):
+        out = tools.navigate_to_page("/suppliers")
+        assert out == {"queued_action": "navigate", "route": "/suppliers"}
+
+    def test_navigate_to_page_rejects_unknown_route(self):
+        out = tools.navigate_to_page("/not-a-page")
+        assert "error" in out
+        assert "/" in out["valid_routes"]
+
+    def test_set_filter_valid(self):
+        out = tools.set_filter(filter="location", value="Tokyo")
+        assert out == {"queued_action": "set_filter", "filter": "location", "value": "Tokyo"}
+
+    def test_set_filter_rejects_unknown_filter(self):
+        out = tools.set_filter(filter="warehouse_id", value="x")
+        assert "error" in out
+
+    def test_highlight_element_valid(self):
+        out = tools.highlight_element(kind="nav:low-stock", note="check this")
+        assert out["queued_action"] == "highlight"
+        assert out["kind"] == "nav:low-stock"
+        assert out["note"] == "check this"
+
+    def test_highlight_element_rejects_unknown_kind(self):
+        out = tools.highlight_element(kind="bogus:thing")
+        assert "error" in out
 
     def test_propose_restocking_order_signs_id_and_does_not_persist(self):
         plan = tools.propose_restocking_order(budget=50_000)
@@ -387,6 +414,43 @@ class TestAgentLoop:
         # And of course the proposal does NOT actually submit — the plan is
         # only in the proposals dict, not in any orders list.
         assert proposal_event["proposal"]["proposal_id"] in tools._pending_proposals
+
+    def test_ui_tool_emits_ui_action_event(self, monkeypatch):
+        scripted = [
+            _FakeMessage(
+                content=[
+                    _FakeContentBlock(
+                        type="tool_use",
+                        id="tu_ui",
+                        name="navigate_to_page",
+                        input={"route": "/suppliers"},
+                    )
+                ],
+                stop_reason="tool_use",
+            ),
+            _FakeMessage(
+                content=[_FakeContentBlock(type="text", text="Done — taking you there.")],
+                stop_reason="end_turn",
+            ),
+        ]
+        monkeypatch.setattr(agent, "Anthropic", lambda **_kw: _FakeAnthropic(scripted))
+
+        events = _drain(
+            agent.run_chat(
+                conversation_id="t-ui",
+                user_message="show me the suppliers page",
+                page_context=None,
+            )
+        )
+
+        types = [e["type"] for e in events]
+        # UI tools emit BOTH a tool_result (ack to the model) AND a separate
+        # ui_action event for the frontend to react to.
+        assert "tool_result" in types
+        assert "ui_action" in types
+        ui = next(e for e in events if e["type"] == "ui_action")
+        assert ui["action"]["queued_action"] == "navigate"
+        assert ui["action"]["route"] == "/suppliers"
 
     def test_missing_api_key_short_circuits(self, monkeypatch):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)

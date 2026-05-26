@@ -95,7 +95,7 @@
 
 <script>
 import { ref, computed, nextTick, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from '../composables/useI18n'
 import { useFilters } from '../composables/useFilters'
 import { useCopilotStream } from '../composables/useCopilotStream'
@@ -108,7 +108,9 @@ export default {
   setup() {
     const { t } = useI18n()
     const route = useRoute()
-    const { getCurrentFilters } = useFilters()
+    const router = useRouter()
+    const filtersApi = useFilters()
+    const { getCurrentFilters } = filtersApi
     const {
       messages,
       streaming,
@@ -117,7 +119,7 @@ export default {
       approveProposal,
       rejectProposal,
       newConversation,
-    } = useCopilotStream()
+    } = useCopilotStream({ router, filters: filtersApi })
 
     const draft = ref('')
     const scroll = ref(null)

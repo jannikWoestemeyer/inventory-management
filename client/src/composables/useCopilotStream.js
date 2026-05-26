@@ -25,7 +25,104 @@ function makeConversationId() {
   return 'conv-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8)
 }
 
-export function useCopilotStream() {
+/**
+ * Apply a UI action emitted by the server-side agent.
+ *
+ * The agent's UI tools (navigate_to_page / set_filter / highlight_element)
+ * return a `{queued_action: ...}` payload that the server broadcasts as a
+ * separate SSE `ui_action` event. We execute it here on the client.
+ *
+ * Returns a result tag for tracing — not used by the agent loop today, but
+ * useful if we later round-trip an ack via a follow-up user message.
+ */
+function applyUiAction(action, ctx) {
+  if (!action || typeof action !== 'object') return { applied: false }
+  switch (action.queued_action) {
+    case 'navigate': {
+      if (ctx.router && action.route) {
+        ctx.router.push(action.route).catch(() => {})
+        return { applied: true, route: action.route }
+      }
+      return { applied: false, reason: 'no router or route' }
+    }
+    case 'set_filter': {
+      const map = {
+        period: ctx.filters?.selectedPeriod,
+        location: ctx.filters?.selectedLocation,
+        category: ctx.filters?.selectedCategory,
+        status: ctx.filters?.selectedStatus,
+      }
+      const ref = map[action.filter]
+      if (!ref || typeof ref !== 'object' || !('value' in ref)) {
+        return { applied: false, reason: 'unknown filter' }
+      }
+      ref.value = normalizeFilterValue(action.filter, action.value)
+      return { applied: true, filter: action.filter, value: ref.value }
+    }
+    case 'highlight': {
+      const selector = highlightSelectorFor(action.kind)
+      if (!selector) return { applied: false, reason: 'unmapped kind' }
+      const el = document.querySelector(selector)
+      if (!el) return { applied: false, reason: 'element not in DOM' }
+      el.classList.remove('copilot-pulse')
+      // Force reflow so the class re-application restarts the animation
+      // even if we highlight the same element twice in a row.
+      void el.offsetWidth
+      el.classList.add('copilot-pulse')
+      // Strip the class once the animation finishes so the DOM stays clean.
+      const stripper = () => {
+        el.classList.remove('copilot-pulse')
+        el.removeEventListener('animationend', stripper)
+      }
+      el.addEventListener('animationend', stripper)
+      return { applied: true, kind: action.kind }
+    }
+    default:
+      return { applied: false, reason: 'unknown queued_action' }
+  }
+}
+
+/**
+ * Normalize a filter value so it actually matches the option value the
+ * <select> uses. The FilterBar uses lowercase for category + status, title
+ * case for warehouses; the model sometimes guesses one off — coerce here
+ * rather than make the model second-guess casing on every call.
+ */
+function normalizeFilterValue(filter, raw) {
+  const v = String(raw ?? '').trim()
+  if (!v || v.toLowerCase() === 'all') return 'all'
+  switch (filter) {
+    case 'category':
+    case 'status':
+      return v.toLowerCase()
+    case 'location': {
+      const map = {
+        'san francisco': 'San Francisco',
+        london: 'London',
+        tokyo: 'Tokyo',
+      }
+      return map[v.toLowerCase()] || v
+    }
+    default:
+      return v
+  }
+}
+
+/** Translate a server-side highlight `kind` into a CSS selector. */
+function highlightSelectorFor(kind) {
+  // Nav tabs first: we tag each router-link with data-copilot-nav="<key>".
+  if (kind?.startsWith?.('nav:')) {
+    return `[data-copilot-nav="${kind.slice(4)}"]`
+  }
+  if (kind?.startsWith?.('filter:')) {
+    return `[data-copilot-filter="${kind.slice(7)}"]`
+  }
+  if (kind === 'page:current') return '.main-content'
+  return null
+}
+
+export function useCopilotStream({ router, filters } = {}) {
+  const uiCtx = { router, filters }
   /** @type {import('vue').Ref<string>} */
   const conversationId = ref(localStorage.getItem(CONV_ID_KEY) || makeConversationId())
   localStorage.setItem(CONV_ID_KEY, conversationId.value)
@@ -159,6 +256,9 @@ export function useCopilotStream() {
       case 'error':
         error.value = event.message
         messages.value.push({ role: 'error', text: event.message })
+        break
+      case 'ui_action':
+        applyUiAction(event.action, uiCtx)
         break
       case 'done':
         // Nothing to do — the stream loop will exit on its own.

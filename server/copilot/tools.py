@@ -290,6 +290,56 @@ def get_spending_breakdown() -> dict:
 
 
 # ---------------------------------------------------------------------------
+# UI-control tools — these run client-side. The server's "execution" is just
+# acking the request to the model; the agent.py loop also emits a separate
+# `ui_action` SSE event that the frontend reacts to (navigate, set filter,
+# pulse a highlight). The model receives `{queued_action: ...}` as the tool
+# result so it knows the action was dispatched and can continue narrating.
+# ---------------------------------------------------------------------------
+
+_ROUTES = {
+    "/", "/inventory", "/orders", "/demand", "/spending",
+    "/reports", "/restocking", "/backlog", "/suppliers", "/low-stock",
+}
+
+
+def navigate_to_page(route: str) -> dict:
+    """Send a navigation directive to the frontend."""
+    if route not in _ROUTES:
+        return {"error": f"unknown route: {route}", "valid_routes": sorted(_ROUTES)}
+    return {"queued_action": "navigate", "route": route}
+
+
+_FILTERS = {"period", "location", "category", "status"}
+
+
+def set_filter(filter: str, value: str) -> dict:
+    """Set one of the global FilterBar filters."""
+    if filter not in _FILTERS:
+        return {"error": f"unknown filter: {filter}", "valid_filters": sorted(_FILTERS)}
+    return {"queued_action": "set_filter", "filter": filter, "value": value}
+
+
+_HIGHLIGHT_KINDS = {
+    "nav:overview", "nav:inventory", "nav:orders", "nav:finance",
+    "nav:demand", "nav:reports", "nav:restocking", "nav:backlog",
+    "nav:suppliers", "nav:low-stock",
+    "filter:period", "filter:location", "filter:category", "filter:status",
+    "page:current",
+}
+
+
+def highlight_element(kind: str, note: Optional[str] = None) -> dict:
+    """Pulse a soft outline around a UI element to direct the user's attention."""
+    if kind not in _HIGHLIGHT_KINDS:
+        return {
+            "error": f"unknown highlight target: {kind}",
+            "valid_kinds": sorted(_HIGHLIGHT_KINDS),
+        }
+    return {"queued_action": "highlight", "kind": kind, "note": note}
+
+
+# ---------------------------------------------------------------------------
 # Proposal-only mutation: propose a restocking order. Does NOT submit.
 # The server holds the payload server-side under a signed proposal_id; the UI
 # must explicitly call /api/copilot/approve to commit it.
@@ -520,6 +570,96 @@ TOOL_SCHEMAS: List[dict] = [
         "input_schema": {"type": "object", "properties": {}},
     },
     {
+        "name": "navigate_to_page",
+        "description": (
+            "Navigate the dashboard to a specific page. Use this when the user "
+            "asks to 'go to', 'show me', or 'open' a page, or when the "
+            "information you found lives on a particular page and you want to "
+            "take the user there. The navigation happens in the user's browser; "
+            "no need to ask permission."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "route": {
+                    "type": "string",
+                    "enum": [
+                        "/", "/inventory", "/orders", "/demand", "/spending",
+                        "/reports", "/restocking", "/backlog", "/suppliers",
+                        "/low-stock",
+                    ],
+                    "description": "Target route path.",
+                },
+            },
+            "required": ["route"],
+        },
+    },
+    {
+        "name": "set_filter",
+        "description": (
+            "Apply a value to one of the global filter dropdowns at the top of "
+            "the dashboard. The filter then applies to every page until reset. "
+            "Use 'all' as the value to clear a filter. After setting filters, "
+            "subsequent tool calls and the user's next message will reflect the "
+            "new filter context."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "filter": {
+                    "type": "string",
+                    "enum": ["period", "location", "category", "status"],
+                },
+                "value": {
+                    "type": "string",
+                    "description": (
+                        "For 'period': 'all' or 'YYYY-MM' (e.g. '2025-03'). "
+                        "For 'location': 'all' or one of 'San Francisco', "
+                        "'London', 'Tokyo' (exact casing). "
+                        "For 'category': 'all' or lowercase one of "
+                        "'circuit boards', 'sensors', 'actuators', "
+                        "'controllers', 'power supplies'. "
+                        "For 'status': 'all' or lowercase one of "
+                        "'delivered', 'shipped', 'processing', 'backordered'. "
+                        "If unsure of casing, the UI normalizes anyway, but "
+                        "prefer the canonical form above."
+                    ),
+                },
+            },
+            "required": ["filter", "value"],
+        },
+    },
+    {
+        "name": "highlight_element",
+        "description": (
+            "Direct the user's attention to a specific UI element by pulsing "
+            "a soft outline around it for a couple of seconds. Use sparingly "
+            "and only when you want to show the user where something lives."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "nav:overview", "nav:inventory", "nav:orders",
+                        "nav:finance", "nav:demand", "nav:reports",
+                        "nav:restocking", "nav:backlog", "nav:suppliers",
+                        "nav:low-stock",
+                        "filter:period", "filter:location",
+                        "filter:category", "filter:status",
+                        "page:current",
+                    ],
+                },
+                "note": {
+                    "type": "string",
+                    "description": "Optional short caption to render alongside the pulse.",
+                },
+            },
+            "required": ["kind"],
+        },
+    },
+    {
         "name": "propose_restocking_order",
         "description": (
             "Build a proposed restocking order using greedy gap-fill against "
@@ -555,6 +695,9 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "get_quarterly_reports": get_quarterly_reports,
     "get_monthly_trends": get_monthly_trends,
     "get_spending_breakdown": get_spending_breakdown,
+    "navigate_to_page": navigate_to_page,
+    "set_filter": set_filter,
+    "highlight_element": highlight_element,
     "propose_restocking_order": propose_restocking_order,
 }
 
