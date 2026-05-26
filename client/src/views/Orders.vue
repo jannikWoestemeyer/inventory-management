@@ -27,6 +27,46 @@
         </div>
       </div>
 
+      <div v-if="submittedOrders.length > 0" class="card">
+        <div class="card-header">
+          <h3 class="card-title">Submitted Orders — Restocking ({{ submittedOrders.length }})</h3>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Order #</th>
+                <th>Items</th>
+                <th>Submitted</th>
+                <th>Expected delivery</th>
+                <th>Lead time</th>
+                <th class="col-value">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="o in submittedOrders" :key="o.id">
+                <td><strong>{{ o.order_number }}</strong></td>
+                <td>
+                  <details class="items-details">
+                    <summary class="items-summary">{{ o.items.length }} item(s)</summary>
+                    <div class="items-dropdown">
+                      <div v-for="(it, i) in o.items" :key="i" class="item-entry">
+                        <span class="item-name">{{ it.item_name }}</span>
+                        <span class="item-meta">Qty: {{ it.quantity }} @ {{ currencySymbol }}{{ it.unit_cost }} · lead {{ it.lead_time_days }}d</span>
+                      </div>
+                    </div>
+                  </details>
+                </td>
+                <td>{{ formatDate(o.submitted_at) }}</td>
+                <td>{{ expectedDelivery(o) }}</td>
+                <td><span class="badge info">{{ o.max_lead_time_days }} days</span></td>
+                <td class="col-value"><strong>{{ currencySymbol }}{{ o.total_value.toLocaleString() }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <h3 class="card-title">{{ t('orders.allOrders') }} ({{ orders.length }})</h3>
@@ -95,6 +135,7 @@ export default {
     const loading = ref(true)
     const error = ref(null)
     const orders = ref([])
+    const submittedOrders = ref([])
 
     // Use shared filters
     const {
@@ -109,7 +150,10 @@ export default {
       try {
         loading.value = true
         const filters = getCurrentFilters()
-        const fetchedOrders = await api.getOrders(filters)
+        const [fetchedOrders, fetchedSubmitted] = await Promise.all([
+          api.getOrders(filters),
+          api.getRestockingOrders()
+        ])
 
         // Sort orders by order_date (earliest first)
         orders.value = fetchedOrders.sort((a, b) => {
@@ -117,6 +161,11 @@ export default {
           const dateB = new Date(b.order_date)
           return dateA - dateB
         })
+
+        // Newest restocking orders first
+        submittedOrders.value = fetchedSubmitted.sort(
+          (a, b) => new Date(b.submitted_at) - new Date(a.submitted_at)
+        )
       } catch (err) {
         error.value = 'Failed to load orders: ' + err.message
       } finally {
@@ -128,6 +177,14 @@ export default {
     watch([selectedPeriod, selectedLocation, selectedCategory, selectedStatus], () => {
       loadOrders()
     })
+
+    // Compute expected delivery from submitted_at + max_lead_time_days
+    const expectedDelivery = (o) => {
+      const submitted = new Date(o.submitted_at)
+      const eta = new Date(submitted)
+      eta.setDate(eta.getDate() + o.max_lead_time_days)
+      return formatDate(eta.toISOString())
+    }
 
     const getOrdersByStatus = (status) => {
       return orders.value.filter(order => order.status === status)
@@ -160,9 +217,11 @@ export default {
       loading,
       error,
       orders,
+      submittedOrders,
       getOrdersByStatus,
       getOrderStatusClass,
       formatDate,
+      expectedDelivery,
       currencySymbol,
       translateProductName,
       translateCustomerName

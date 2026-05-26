@@ -89,6 +89,31 @@ class DemandForecast(BaseModel):
     forecasted_demand: int
     trend: str
     period: str
+    unit_cost: Optional[float] = None
+    lead_time_days: Optional[int] = None
+
+
+class RestockingOrderItem(BaseModel):
+    item_sku: str
+    item_name: str
+    quantity: int
+    unit_cost: float
+    lead_time_days: int
+
+
+class RestockingOrder(BaseModel):
+    id: str
+    order_number: str
+    items: List[RestockingOrderItem]
+    total_value: float
+    budget: float
+    submitted_at: str
+    max_lead_time_days: int
+
+
+class CreateRestockingOrderRequest(BaseModel):
+    items: List[RestockingOrderItem]
+    budget: float
 
 class BacklogItem(BaseModel):
     id: str
@@ -303,6 +328,48 @@ def get_monthly_trends():
     result = list(months.values())
     result.sort(key=lambda x: x['month'])
     return result
+
+# In-memory store for restocking orders (resets on server restart)
+submitted_restocking_orders: List[dict] = []
+
+
+@app.get("/api/restocking/orders", response_model=List[RestockingOrder])
+def get_restocking_orders():
+    """Get all submitted restocking orders."""
+    return submitted_restocking_orders
+
+
+@app.post("/api/restocking/orders", response_model=RestockingOrder, status_code=201)
+def create_restocking_order(payload: CreateRestockingOrderRequest):
+    """Submit a new restocking order built from demand-forecast recommendations."""
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="No items in restocking order")
+
+    from datetime import datetime, timezone
+
+    total_value = sum(item.quantity * item.unit_cost for item in payload.items)
+    if total_value > payload.budget + 0.01:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Order total ${total_value:.2f} exceeds budget ${payload.budget:.2f}",
+        )
+
+    max_lead = max(item.lead_time_days for item in payload.items)
+    next_id = str(len(submitted_restocking_orders) + 1)
+    order_number = f"RST-2025-{int(next_id):04d}"
+
+    order = {
+        "id": next_id,
+        "order_number": order_number,
+        "items": [item.model_dump() for item in payload.items],
+        "total_value": round(total_value, 2),
+        "budget": payload.budget,
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
+        "max_lead_time_days": max_lead,
+    }
+    submitted_restocking_orders.append(order)
+    return order
+
 
 if __name__ == "__main__":
     import uvicorn
