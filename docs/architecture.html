@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Factory Inventory Management — Architecture</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --vue: #42b883;
+    --py: #ffd43b;
+    --json: #f59e0b;
+    --border: #334155;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 2.5rem 2rem; }
+  header { text-align: center; margin-bottom: 2.5rem; }
+  h1 { font-size: 2.25rem; margin: 0 0 0.5rem; letter-spacing: -0.025em; }
+  .subtitle { color: var(--muted); font-size: 1rem; }
+  h2 { font-size: 1.25rem; margin: 2rem 0 1rem; color: var(--accent); letter-spacing: -0.02em; }
+
+  /* Data-flow diagram */
+  .flow {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 0.75rem;
+    align-items: stretch;
+    margin: 1.5rem 0 2rem;
+  }
+  .node {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex; flex-direction: column; gap: 0.5rem;
+    min-height: 220px;
+  }
+  .node.frontend { border-top: 3px solid var(--vue); }
+  .node.backend  { border-top: 3px solid var(--py); }
+  .node.data     { border-top: 3px solid var(--json); }
+  .node h3 { margin: 0; font-size: 1.05rem; }
+  .node .badge {
+    display: inline-block; font-size: 0.7rem; padding: 0.15rem 0.5rem;
+    background: var(--panel-2); border-radius: 999px; color: var(--muted);
+    width: fit-content; margin-bottom: 0.4rem; letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .node ul { margin: 0.25rem 0 0 1rem; padding: 0; font-size: 0.85rem; color: var(--muted); }
+  .node ul li { margin: 0.2rem 0; }
+  .node .port { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.8rem; color: var(--accent); }
+
+  .arrow {
+    align-self: center; display: flex; flex-direction: column;
+    align-items: center; gap: 0.25rem; font-size: 0.7rem; color: var(--muted);
+  }
+  .arrow .line {
+    width: 56px; height: 2px; background: linear-gradient(90deg, var(--vue), var(--py));
+    position: relative;
+  }
+  .arrow .line::after {
+    content: ''; position: absolute; right: -1px; top: -4px;
+    border: 5px solid transparent; border-left-color: var(--py);
+  }
+  .arrow.reverse .line {
+    background: linear-gradient(90deg, var(--py), var(--vue));
+  }
+  .arrow.reverse .line::after { right: auto; left: -1px;
+    border-left-color: transparent; border-right-color: var(--vue); }
+
+  /* Endpoint + view tables */
+  .grid-2 {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.25rem;
+  }
+  .card h3 { margin: 0 0 0.75rem; font-size: 1rem; color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  td code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem;
+    background: var(--panel-2); padding: 0.05rem 0.4rem; border-radius: 4px; color: var(--vue); }
+
+  .pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+  .pill { background: var(--panel-2); border: 1px solid var(--border);
+    padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.75rem; color: var(--muted); }
+
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+
+  @media (max-width: 880px) {
+    .flow { grid-template-columns: 1fr; }
+    .arrow { transform: rotate(90deg); margin: 0.5rem 0; }
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Factory Inventory Management System</h1>
+    <div class="subtitle">Architecture overview — Vue 3 SPA · FastAPI · in-memory JSON data</div>
+  </header>
+
+  <h2>System architecture</h2>
+  <div class="flow">
+    <div class="node frontend">
+      <span class="badge">Frontend</span>
+      <h3>Vue 3 SPA</h3>
+      <div class="port">:3000 (Vite dev server)</div>
+      <ul>
+        <li>Composition API</li>
+        <li>vue-router 4 (7 views)</li>
+        <li>axios HTTP client</li>
+        <li>i18n (en/ja) via composable</li>
+        <li>Global FilterBar + composables</li>
+      </ul>
+    </div>
+
+    <div class="arrow">
+      <div>HTTPS/JSON</div>
+      <div class="line"></div>
+      <div>axios → CORS</div>
+    </div>
+
+    <div class="node backend">
+      <span class="badge">Backend</span>
+      <h3>FastAPI</h3>
+      <div class="port">:8001 (uvicorn)</div>
+      <ul>
+        <li>Pydantic request/response models</li>
+        <li>CORS: allow_origins=["*"]</li>
+        <li>Stateless filtering helpers</li>
+        <li>Auto-docs at <code>/docs</code></li>
+      </ul>
+    </div>
+
+    <div class="arrow">
+      <div>load on startup</div>
+      <div class="line"></div>
+      <div>mock_data.py</div>
+    </div>
+
+    <div class="node data">
+      <span class="badge">Data</span>
+      <h3>JSON files (in-memory)</h3>
+      <div class="port">server/data/*.json</div>
+      <ul>
+        <li>inventory.json</li>
+        <li>orders.json</li>
+        <li>demand_forecasts.json</li>
+        <li>backlog_items.json</li>
+        <li>purchase_orders.json</li>
+        <li>spending.json · transactions.json</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Frontend views & components</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Views (router pages)</h3>
+      <table>
+        <thead><tr><th>Route</th><th>File</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>/</code></td><td>Dashboard.vue</td><td>KPIs, charts, summary</td></tr>
+          <tr><td><code>/inventory</code></td><td>Inventory.vue</td><td>Stock by warehouse</td></tr>
+          <tr><td><code>/orders</code></td><td>Orders.vue</td><td>Order tracking</td></tr>
+          <tr><td><code>/spending</code></td><td>Spending.vue</td><td>Spend analytics</td></tr>
+          <tr><td><code>/demand</code></td><td>Demand.vue</td><td>Demand forecasts</td></tr>
+          <tr><td><code>/backlog</code></td><td>Backlog.vue</td><td>Backlog monitoring</td></tr>
+          <tr><td><code>/reports</code></td><td>Reports.vue</td><td>Quarterly/monthly reports</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Cross-cutting building blocks</h3>
+      <div class="pills">
+        <span class="pill">FilterBar (global)</span>
+        <span class="pill">LanguageSwitcher</span>
+        <span class="pill">ProfileMenu</span>
+        <span class="pill">useFilters</span>
+        <span class="pill">useI18n</span>
+        <span class="pill">useAuth</span>
+        <span class="pill">currency.js</span>
+        <span class="pill">api.js</span>
+        <span class="pill">ProductDetailModal</span>
+        <span class="pill">BacklogDetailModal</span>
+        <span class="pill">CostDetailModal</span>
+      </div>
+      <p style="color: var(--muted); font-size: 0.85rem; margin-top: 1rem;">
+        State pattern: raw data in <code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">ref()</code>,
+        derived data in <code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">computed()</code>;
+        filters live in a shared composable.
+      </p>
+    </div>
+  </div>
+
+  <h2>Backend API surface</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Filters</th><th>Returns</th></tr></thead>
+      <tbody>
+        <tr><td>GET</td><td><code>/api/inventory</code></td><td>warehouse, category</td><td>List[InventoryItem]</td></tr>
+        <tr><td>GET</td><td><code>/api/inventory/{id}</code></td><td>—</td><td>InventoryItem</td></tr>
+        <tr><td>GET</td><td><code>/api/orders</code></td><td>warehouse, category, status, month</td><td>List[Order]</td></tr>
+        <tr><td>GET</td><td><code>/api/orders/{id}</code></td><td>—</td><td>Order</td></tr>
+        <tr><td>GET</td><td><code>/api/demand</code></td><td>—</td><td>List[DemandForecast]</td></tr>
+        <tr><td>GET</td><td><code>/api/backlog</code></td><td>—</td><td>List[BacklogItem] (with PO flag)</td></tr>
+        <tr><td>GET</td><td><code>/api/dashboard/summary</code></td><td>all four</td><td>Summary stats</td></tr>
+        <tr><td>GET</td><td><code>/api/spending/{summary,monthly,categories,transactions}</code></td><td>—</td><td>Spending breakdowns</td></tr>
+        <tr><td>GET</td><td><code>/api/reports/quarterly</code></td><td>—</td><td>Quarterly aggregates</td></tr>
+        <tr><td>GET</td><td><code>/api/reports/monthly-trends</code></td><td>—</td><td>Month-over-month</td></tr>
+        <tr><td>POST/PATCH/DELETE</td><td><code>/api/tasks</code>, <code>/api/purchase-orders</code></td><td>—</td><td>Mutations (in-memory)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Request lifecycle</h2>
+  <div class="card">
+    <ol style="color: var(--muted); font-size: 0.9rem; line-height: 1.8; margin: 0; padding-left: 1.2rem;">
+      <li>User changes a filter (warehouse / category / status / month) → <code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">useFilters</code> composable updates shared refs.</li>
+      <li>View component’s <code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">computed</code>/<code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">watch</code> fires → calls <code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">api.getX(filters)</code> in <code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">client/src/api.js</code>.</li>
+      <li>axios issues <code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">GET http://localhost:8001/api/...</code> with query params.</li>
+      <li>FastAPI matches route, validates query, runs <code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">apply_filters()</code> + <code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">filter_by_month()</code> over in-memory lists.</li>
+      <li>Pydantic serializes the response → JSON back over CORS to the SPA.</li>
+      <li>Component renders rows / charts; loading + error states handled per the patterns in <code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">client/CLAUDE.md</code>.</li>
+    </ol>
+  </div>
+
+  <footer>
+    Generated from a Claude Code codebase scan · <code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">server/main.py</code> · <code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">client/src/api.js</code> · <code style="background: var(--panel-2); padding: 0.05rem 0.3rem; border-radius: 4px; color: var(--vue); font-family: ui-monospace, monospace;">client/src/App.vue</code>
+  </footer>
+</div>
+</body>
+</html>
